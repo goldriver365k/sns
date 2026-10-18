@@ -30,13 +30,24 @@ export function hashtagsIn(text: string): string[] {
 }
 
 /**
- * 복사할 최종 글을 만든다.
- * 본문 + (생성된 해시태그) + (브랜드 고정 해시태그)를 합치되, 본문에 이미 있는 해시태그는 다시 붙이지 않는다.
- * 줄바꿈은 그대로 유지한다.
+ * 글 끝에 붙일 해시태그를 고른다.
+ * 고정 해시태그가 가장 먼저, 그다음 생성된 해시태그. 본문에 이미 있는 것은 빼고,
+ * SNS별 최대 개수(max)를 넘지 않게 한다(본문 속 해시태그도 개수에 포함).
  */
-export function composeCopyText(body: string, generated: string[] = [], fixed: string[] = []): string {
+export function pickHashtags(body: string, generated: string[] = [], fixed: string[] = [], max = Infinity): string[] {
+  const inBody = hashtagsIn(body)
+  const existing = new Set(inBody.map((t) => t.toLowerCase()))
+  const room = Math.max(0, max - inBody.length)
+  return dedupe([...fixed, ...generated])
+    .filter((t) => !existing.has(t.toLowerCase()))
+    .slice(0, room)
+}
+
+/**
+ * 복사할 최종 글을 만든다: 본문 + 해시태그(고정 우선, 최대 개수 이내). 줄바꿈은 그대로 유지한다.
+ */
+export function composeCopyText(body: string, generated: string[] = [], fixed: string[] = [], max = Infinity): string {
   const text = body.replace(/\s+$/, '')
-  const existing = new Set(hashtagsIn(text).map((t) => t.toLowerCase()))
-  const extra = dedupe([...generated, ...fixed]).filter((t) => !existing.has(t.toLowerCase()))
+  const extra = pickHashtags(text, generated, fixed, max)
   return extra.length ? `${text}\n\n${extra.join(' ')}` : text
 }

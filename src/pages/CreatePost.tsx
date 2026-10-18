@@ -82,7 +82,17 @@ export default function CreatePost() {
               <option value="" disabled>선택해 주세요</option>
               {SNS_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
-            {profile && <p className="mt-1 text-xs text-muted">결과: {profile.summary}</p>}
+            {profile && (
+              <>
+                <p className="mt-1 text-xs text-muted">결과: {profile.summary}</p>
+                <details className="mt-2 rounded-xl bg-forest-50 px-4 py-3 text-sm" open>
+                  <summary className="cursor-pointer font-semibold text-forest-700">{profile.label} 노출 핵심 — 생성할 때 반드시 반영</summary>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-[13px] leading-relaxed text-ink">
+                    {profile.essentials.map((e) => <li key={e}>{e}</li>)}
+                  </ul>
+                </details>
+              </>
+            )}
           </div>
 
           <div>
@@ -99,7 +109,16 @@ export default function CreatePost() {
             </select>
             {brand?.siteUrl && <p className="mt-1 text-xs text-muted">게시물에 {brand.siteUrl} 주소가 들어갑니다.</p>}
             {brand && brand.hashtags.length > 0 && (
-              <p className="mt-1 text-xs text-muted">복사할 때 항상 붙는 해시태그: <span className="text-forest-700">{brand.hashtags.join(' ')}</span></p>
+              <p className="mt-1 text-xs text-muted">복사할 때 항상 붙는 해시태그:{' '}
+                {brand.hashtags.map((t) => <span key={t} className="mr-1 inline-block text-forest-700">{t}</span>)}
+              </p>
+            )}
+            {brand && profile && brand.hashtags.length > profile.hashtags[1] && (
+              <p className="mt-1 text-xs text-red-700">
+                {profile.hashtags[1] === 0
+                  ? `${profile.label}에는 해시태그를 붙이지 않습니다.`
+                  : `${profile.label}는 해시태그 최대 ${profile.hashtags[1]}개라 고정 해시태그 중 앞의 ${profile.hashtags[1]}개만 붙습니다.`}
+              </p>
             )}
             {channelError && <p className="mt-1 text-xs text-red-700">{channelError}</p>}
           </div>
