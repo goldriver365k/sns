@@ -9,7 +9,7 @@ export async function generatePost(req: GenerateRequest): Promise<GeneratedPost>
 
   let res: Response
   try {
-    res = await fetch('/api/generate', {
+    res = await fetch('/.netlify/functions/generate', {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
       body: JSON.stringify(req),
@@ -22,8 +22,18 @@ export async function generatePost(req: GenerateRequest): Promise<GeneratedPost>
 
   const data = await res.json().catch(() => null)
   if (!res.ok || !data?.post) {
-    if (res.status === 404) throw new Error('생성 서버(Netlify Functions)를 찾지 못했습니다. 배포된 사이트에서 사용해 주세요.')
-    throw new Error(data?.error || '생성 중 문제가 발생했습니다. 다시 시도해 주세요.')
+    if (res.status === 404) throw new Error('생성 서버(Netlify Functions)를 찾지 못했습니다. 배포 로그의 Functions 항목을 확인해 주세요. (HTTP 404)')
+    throw new Error(`${data?.error || '생성 중 문제가 발생했습니다. 다시 시도해 주세요.'}${data?.error ? '' : ` (HTTP ${res.status})`}`)
   }
   return data.post as GeneratedPost
+}
+
+/** 서버 설정 점검 (환경변수 유무만 확인) */
+export async function checkServer(): Promise<Record<string, string>> {
+  const user = auth?.currentUser
+  if (!user) throw new Error('로그인이 필요합니다.')
+  const res = await fetch('/.netlify/functions/health', { headers: { authorization: `Bearer ${await user.getIdToken()}` } })
+  const data = await res.json().catch(() => null)
+  if (!res.ok || !data) throw new Error(data?.error || `서버 점검 실패 (HTTP ${res.status})`)
+  return data
 }

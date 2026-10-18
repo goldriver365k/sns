@@ -3,7 +3,8 @@ import { getSnsProfile } from '../../shared/sns'
 import { AuthError, requireAdmin } from '../lib/auth'
 import { buildMessages, finalizePost, POST_SCHEMA } from '../lib/prompt'
 
-// SNS 게시물 1개(1개 언어)를 생성한다. 여러 언어는 화면에서 언어별로 나눠 동시에 호출한다.
+// SNS 게시물 1개(1개 언어)를 생성한다. 주소: /.netlify/functions/generate
+// (/.netlify/ 주소는 netlify.toml의 페이지 리다이렉트 규칙에 영향을 받지 않는다) 여러 언어는 화면에서 언어별로 나눠 동시에 호출한다.
 // Netlify 동기 함수는 30초 제한이 있어 OpenAI 호출은 25초에서 끊고 안내한다.
 const OPENAI_TIMEOUT_MS = 25_000
 
@@ -67,6 +68,13 @@ export default async (req: Request) => {
   if (!res.ok) {
     const detail = await res.text().catch(() => '')
     console.error('OpenAI 오류', res.status, detail.slice(0, 500))
+    // OpenAI가 알려준 원인(영문)을 함께 보여준다 — 관리자만 보는 화면이라 진단에 도움이 된다.
+    let reason = ''
+    try {
+      reason = String(JSON.parse(detail)?.error?.message ?? '').slice(0, 300)
+    } catch {
+      reason = detail.slice(0, 200)
+    }
     const message =
       res.status === 401
         ? 'OpenAI API 키가 올바르지 않습니다.'
@@ -75,7 +83,7 @@ export default async (req: Request) => {
           : res.status === 404 || res.status === 400
             ? `AI 요청이 거절되었습니다. 모델 이름(${model})과 설정을 확인해 주세요.`
             : 'AI 생성 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.'
-    return json(502, { error: message })
+    return json(502, { error: reason ? `${message} (OpenAI ${res.status}: ${reason})` : `${message} (OpenAI ${res.status})` })
   }
 
   try {
@@ -88,5 +96,3 @@ export default async (req: Request) => {
     return json(502, { error: 'AI 응답을 읽지 못했습니다. 다시 시도해 주세요.' })
   }
 }
-
-export const config = { path: '/api/generate' }

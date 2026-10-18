@@ -381,11 +381,13 @@ PC와 모바일 모두 대응한다.
 
 ## 8-1. 생성 서버 구조 (3단계 구현)
 
-- `POST /api/generate` (`netlify/functions/generate.ts`): 게시물 1개(언어 1개)를 생성한다.
+- `POST /.netlify/functions/generate` (`netlify/functions/generate.ts`, 리다이렉트 규칙 영향 없는 기본 주소): 게시물 1개(언어 1개)를 생성한다.
   - Netlify 동기 함수는 **30초 제한**이므로 언어별로 나눠 화면에서 동시에 호출하고, OpenAI 호출은 25초에서 끊고 안내한다.
   - Firebase ID 토큰을 Google 공개 키로 검증(`netlify/lib/auth.ts`, 서비스 계정 불필요) + `ADMIN_EMAILS` 확인 후에만 실행.
   - OpenAI Chat Completions + JSON 스키마(구조화 출력). 모델은 `OPENAI_MODEL`, 추론형 모델이면 선택 설정 `OPENAI_REASONING_EFFORT`(예: low)로 속도를 높인다.
   - 생성 후 코드로 한 번 더 보장: 사이트 주소 누락 시 덧붙임, X·링크드인은 `https://` 제거, 본문 끝 해시태그 줄은 해시태그 칸으로 이동, 고정 해시태그와 중복 제거.
+- `GET /.netlify/functions/health`: 관리자 토큰 확인 후 환경변수 유무만 알려준다(값 비공개). 운영 설정의 [서버 연결 점검]에서 사용.
+- 오류 메시지에 HTTP 상태와 OpenAI가 알려준 원인을 함께 표시한다(관리자 전용 화면).
 - 화면: 결과를 노출 검사(`checkReach`)해서 통과 못 한 항목이 있으면 그 항목을 지정해 1번 더 생성(보완)한다.
 - 저장은 화면에서 Firestore에 직접 한다(보안 규칙으로 관리자만 가능). 수정 내용은 입력이 멈추고 1초 뒤 자동 저장.
 - 생성이 끝나면 첫 언어 결과를 자동 복사하고, 브라우저가 막으면 [복사하기] 안내.
