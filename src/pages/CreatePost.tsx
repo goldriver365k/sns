@@ -1,11 +1,38 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import PageHeader from '../components/PageHeader'
+import PostResult, { finalText, type LangResult } from '../components/PostResult'
 import { IconPhone } from '../components/Icons'
 import BrandEditor from '../components/BrandEditor'
 import PlanEditor from '../components/PlanEditor'
 import { btnLink, fieldLabel, inputBase } from '../components/ui'
 import { getSnsProfile, LANGUAGES, MAX_TEXT, SNS_TYPES, type Language, type SnsType } from '../lib/options'
 import { newId, todayWeekday, useChannels, type Channel } from '../lib/channels'
+import { generatePost } from '../lib/api'
+import { copyText } from '../lib/clipboard'
+import { newContentId, saveContent, updateContent, type StoredPost } from '../lib/contents'
+import { checkReach, type SnsProfile } from '../../shared/sns'
+import { pickHashtags } from '../../shared/hashtags'
+import type { GenerateRequest, GeneratedPost } from '../../shared/generate'
+
+/** [자동 완성]을 누른 순간의 입력값. 결과를 다시 만들거나 저장할 때 이 값을 쓴다. */
+type Run = {
+  id: string
+  profile: SnsProfile
+  languages: string[]
+  request: Omit<GenerateRequest, 'language'>
+  channelId: string | null
+  brandName: string
+  topic: string
+  fixedHashtags: string[]
+}
+
+/** 노출 검사에서 통과하지 못한 항목 */
+function failedChecks(profile: SnsProfile, post: GeneratedPost, fixed: string[]) {
+  const hashtags = pickHashtags(post.body, post.hashtags, fixed, profile.hashtags[1])
+  return checkReach(profile.value, { title: post.title, body: post.body, hashtags, keyword: post.keyword })
+    .filter((c) => !c.ok)
+    .map((c) => c.label)
+}
 
 function Required() {
   return <span className="ml-0.5 text-forest-500">*</span>
@@ -21,7 +48,17 @@ export default function CreatePost() {
   const [content, setContent] = useState('')
   const [languages, setLanguages] = useState<Language[]>(['ko'])
   const [instructions, setInstructions] = useState('')
-  const [notice, setNotice] = useState<string | null>(null)
+  const [run, setRun] = useState<Run | null>(null)
+  const [results, setResultsState] = useState<Record<string, LangResult>>({})
+  const resultsRef = useRef<Record<string, LangResult>>({})
+  const [approved, setApproved] = useState(false)
+  const [saveState, setSaveState] = useState<'saving' | 'saved' | 'error' | null>(null)
+  const [autoCopyNotice, setAutoCopyNotice] = useState<string | null>(null)
+  const savedRef = useRef(false)
+  const saveTimer = useRef<number | undefined>(undefined)
+  const resultRef = useRef<HTMLElement>(null)
+
+  const generating = Object.values(results).some((r) => r.status === 'loading' || r.status === 'fixing')
 
   const profile = getSnsProfile(snsType)
   const brand = channels.find((c) => c.id === brandId)
@@ -30,7 +67,7 @@ export default function CreatePost() {
   const monthlyPlans = brand?.plans.filter((p) => p.period === 'monthly') ?? []
 
   // 계획을 고르면 내용은 선택 사항이 된다.
-  const canSubmit = snsType !== '' && (content.trim().length > 0 || !!plan) && languages.length > 0
+  const canSubmit = snsType !== '' && (content.trim().length > 0 || !!plan) && languages.length > 0 && !generating
 
   /** 브랜드를 바꾸면 오늘 요일의 주간 계획을 기본으로 고른다. */
   function selectBrand(id: string, list: Channel[] = channels) {
@@ -62,11 +99,136 @@ export default function CreatePost() {
     setLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]))
   }
 
+  function setResult(lang: string, r: LangResult) {
+    resultsRef.current = { ...resultsRef.current, [lang]: r }
+    setResultsState(resultsRef.current)
+  }
+
+  /** 완료된 언어 결과를 언어 순서대로 모은다. */
+  function collectPosts(r: Run): StoredPost[] {
+    return r.languages.flatMap((language) => {
+      const post = resultsRef.current[language]?.post
+      return post && resultsRef.current[language].status === 'done' ? [{ ...post, language }] : []
+    })
+  }
+
+  /** 결과를 Firestore에 저장한다(처음엔 새 문서, 이후엔 수정). */
+  async function persist(r: Run) {
+    const posts = collectPosts(r)
+    if (posts.length === 0) return
+    setSaveState('saving')
+    try {
+      if (!savedRef.current) {
+        await saveContent(r.id, {
+          channelId: r.channelId,
+          brandName: r.brandName,
+          snsType: r.profile.value,
+          topic: r.topic,
+          fixedHashtags: r.fixedHashtags,
+          input: { content: r.request.content, instructions: r.request.instructions, languages: r.languages },
+          posts,
+        })
+        savedRef.current = true
+      } else {
+        await updateContent(r.id, { posts })
+      }
+      setSaveState('saved')
+    } catch {
+      setSaveState('error')
+    }
+  }
+
+  /** 한 언어를 생성하고, 노출 검사에 걸리면 한 번 보완해서 다시 만든다. */
+  async function generateOne(r: Run, language: string): Promise<GeneratedPost | null> {
+    setResult(language, { status: 'loading' })
+    try {
+      let post = await generatePost({ ...r.request, language })
+      const failed = failedChecks(r.profile, post, r.fixedHashtags)
+      if (failed.length > 0) {
+        setResult(language, { status: 'fixing', post })
+        try {
+          const fixed = await generatePost({ ...r.request, language, fix: { previous: post, failed } })
+          if (failedChecks(r.profile, fixed, r.fixedHashtags).length <= failed.length) post = fixed
+        } catch {
+          // 보완에 실패하면 첫 결과를 그대로 쓴다.
+        }
+      }
+      setResult(language, { status: 'done', post })
+      return post
+    } catch (e) {
+      setResult(language, { status: 'error', error: e instanceof Error ? e.message : '생성하지 못했습니다.' })
+      return null
+    }
+  }
+
+  async function startRun(r: Run) {
+    setRun(r)
+    setApproved(false)
+    setAutoCopyNotice(null)
+    resultsRef.current = {}
+    r.languages.forEach((l) => setResult(l, { status: 'loading' }))
+    const posts = await Promise.all(r.languages.map((l) => generateOne(r, l)))
+    const firstIndex = posts.findIndex(Boolean)
+    if (firstIndex < 0) return
+    await persist(r)
+    // 생성되자마자 첫 번째 언어 결과를 복사한다(브라우저가 막으면 버튼 안내).
+    const ok = await copyText(finalText(r.profile, posts[firstIndex]!, r.fixedHashtags))
+    setAutoCopyNotice(ok ? '생성 완료 — 복사되었습니다' : '생성 완료 — [복사하기]를 눌러 주세요')
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!canSubmit) return
-    // 3단계에서 Netlify Function(OpenAI 호출)과 연결한다.
-    setNotice('생성 기능은 다음 단계(스레드 생성)에서 연결됩니다.')
+    if (!canSubmit || !profile) return
+    savedRef.current = false
+    // 모바일에서는 결과가 입력 폼 아래에 있으므로 결과로 이동
+    if (window.innerWidth < 1024) setTimeout(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+    startRun({
+      id: newContentId(),
+      profile,
+      languages: [...languages],
+      request: {
+        snsType: profile.value,
+        content,
+        instructions,
+        topic: plan?.topic,
+        brand: brand && { name: brand.name, siteUrl: brand.siteUrl, description: brand.description, rules: brand.rules, hashtags: brand.hashtags },
+      },
+      channelId: brand?.id ?? null,
+      brandName: brand?.name ?? '',
+      topic: plan?.topic ?? '',
+      fixedHashtags: brand?.hashtags ?? [],
+    })
+  }
+
+  async function handleRetry(language: string) {
+    if (!run) return
+    if (await generateOne(run, language)) await persist(run)
+  }
+
+  function handleEdit(language: string, post: GeneratedPost) {
+    if (!run) return
+    setResult(language, { status: 'done', post })
+    // 수정 내용은 입력이 멈추고 1초 뒤 자동 저장
+    window.clearTimeout(saveTimer.current)
+    setSaveState('saving')
+    saveTimer.current = window.setTimeout(() => persist(run), 1000)
+  }
+
+  async function handleApprove() {
+    if (!run) return
+    setApproved(true)
+    try {
+      await updateContent(run.id, { status: 'approved' })
+    } catch {
+      setApproved(false)
+      setSaveState('error')
+    }
+  }
+
+  function handleRegenerate() {
+    if (!run) return
+    if (approved) updateContent(run.id, { status: 'draft' }).catch(() => setSaveState('error'))
+    startRun(run)
   }
 
   return (
@@ -199,19 +361,36 @@ export default function CreatePost() {
             disabled={!canSubmit}
             className="w-full rounded-xl bg-forest-700 py-3.5 text-[16px] font-semibold text-cream-50 transition hover:bg-forest-900 disabled:cursor-not-allowed disabled:bg-cream-300 disabled:text-muted"
           >
-            자동 완성
+            {generating ? '작성 중…' : '자동 완성'}
           </button>
-          {notice && <p className="text-center text-sm text-forest-700">{notice}</p>}
         </form>
 
         {/* 오른쪽: 결과 */}
-        <section className="flex min-h-[420px] items-center justify-center rounded-2xl border border-cream-300 bg-white p-6">
-          <div className="text-center">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-forest-50 text-forest-700">
-              <IconPhone className="h-10 w-10" />
+        <section ref={resultRef} className="min-h-[420px] scroll-mt-20 rounded-2xl border border-cream-300 bg-white p-5 sm:p-6">
+          {run ? (
+            <PostResult
+              profile={run.profile}
+              languages={run.languages}
+              results={results}
+              fixedHashtags={run.fixedHashtags}
+              approved={approved}
+              saveState={saveState}
+              autoCopyNotice={autoCopyNotice}
+              onEdit={handleEdit}
+              onRetry={handleRetry}
+              onRegenerate={handleRegenerate}
+              onApprove={handleApprove}
+            />
+          ) : (
+            <div className="flex h-full min-h-[380px] items-center justify-center text-center">
+              <div>
+                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-forest-50 text-forest-700">
+                  <IconPhone className="h-10 w-10" />
+                </div>
+                <p className="mt-5 text-[16px] font-medium text-forest-900">클릭 한 번으로 SNS 게시물을 작성해 드려요!</p>
+              </div>
             </div>
-            <p className="mt-5 text-[16px] font-medium text-forest-900">클릭 한 번으로 SNS 게시물을 작성해 드려요!</p>
-          </div>
+          )}
         </section>
       </div>
 

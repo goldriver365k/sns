@@ -47,9 +47,10 @@
 | `VITE_FIREBASE_API_KEY` 외 5개 | 1-1의 firebaseConfig 값 | **입력 불필요** — snsroom 프로젝트 값이 코드에 들어 있음. 다른 프로젝트로 바꿀 때만 입력 |
 | `VITE_ADMIN_EMAILS` | `higidia@gmail.com` | 화면 접근 허용 |
 | `ADMIN_EMAILS` | `higidia@gmail.com` | 서버 접근 허용 |
-| `FIREBASE_SERVICE_ACCOUNT` | 1-5 JSON 전체 | **비밀값** |
-| `OPENAI_API_KEY` | OpenAI 키 | **비밀값**, 3단계 전에 |
-| `OPENAI_MODEL` | 사용할 모델 이름 | 3단계 전에 |
+| `OPENAI_API_KEY` | OpenAI 키 | **비밀값**, 3단계(게시물 생성)부터 필요 |
+| `OPENAI_MODEL` | 사용할 모델 이름 | 3단계부터 필요. OpenAI 대시보드의 모델 목록에서 고른다 |
+| `OPENAI_REASONING_EFFORT` | `low` 등 | 선택. 추론형 모델일 때만 넣는다(응답 속도 향상). 일반 모델에 넣으면 오류 |
+| `FIREBASE_SERVICE_ACCOUNT` | 1-5 JSON 전체 | **비밀값**, 6단계(매일 자동 생성)부터 필요 |
 | `NEWS_API_KEY` | 뉴스 API 키 | 9단계에서 |
 
 환경변수를 바꾼 뒤에는 **Deploys → Trigger deploy**로 다시 배포해야 반영됩니다.

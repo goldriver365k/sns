@@ -50,6 +50,8 @@ export type SnsProfile = {
   essentials: string[]
   /** 생성 결과 자동 검사 */
   checks: ReachCheck[]
+  /** 본문에 https:// 링크를 넣으면 노출이 줄어드는 SNS (주소는 도메인 글자로만) */
+  noLinks?: boolean
 }
 
 // ── 검사 도우미 ──────────────────────────────────────────
@@ -93,7 +95,7 @@ export const SNS_PROFILES = [
     hashtags: [1, 3],
     guide: '대화하듯 짧은 문장. 첫 줄에 시선을 끄는 한 문장, 이어서 짧은 단락 2~4개, 마지막에 질문이나 공감 유도. 이미지·장식 없이 글만.',
     essentials: [
-      '주제 태그 1개를 가장 앞에 — 스레드는 게시물당 태그 1개만 주제로 인식해 그 주제 피드에 노출된다',
+      '핵심 주제 태그 1개 — 스레드는 게시물당 태그 1개만 주제로 인식해 그 주제 피드에 노출된다',
       '첫 줄 훅 — 피드에서 첫 문장만 보고 멈출지 결정된다',
       '답글을 부르는 질문으로 마무리 — 답글·대화가 가장 강한 노출 신호',
       '500자 이내',
@@ -125,6 +127,7 @@ export const SNS_PROFILES = [
   {
     value: 'x',
     label: 'X(트위터)',
+    noLinks: true,
     kind: 'text',
     summary: '짧은 글 (한글 기준 약 140자)',
     maxChars: 140,
@@ -225,6 +228,7 @@ export const SNS_PROFILES = [
   {
     value: 'linkedin',
     label: '링크드인',
+    noLinks: true,
     kind: 'text',
     summary: '전문가 톤 게시글 (1300자 내외)',
     maxChars: 3000,
@@ -254,4 +258,9 @@ export function getSnsProfile(value: string): SnsProfile | undefined {
 export function checkReach(snsType: string, input: ReachInput) {
   const profile = getSnsProfile(snsType)
   return (profile?.checks ?? []).map((c) => ({ label: c.label, ok: c.test(input) }))
+}
+
+/** 화면에 보여줄 글자 수. X는 한글을 2자로 세므로 "한글 기준" 글자 수로 바꿔 보여준다. */
+export function countChars(snsType: string, text: string) {
+  return snsType === 'x' ? Math.ceil(xWeightedLength(text) / 2) : [...text].length
 }

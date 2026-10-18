@@ -344,12 +344,25 @@ PC와 모바일 모두 대응한다.
   - 인스타: `cards[3]`(제목, 본문, 강조 문구, 디자인, 폰트·색상·위치, 이미지 경로), `caption`, `hashtags`
   - 스레드 등 글 결과: `posts[]`(언어, 본문, 글자 수)
   - `references[]`(출처, 발행일, URL), `topic`, `createdAt`, `updatedAt`
+  - (구현) 수동 생성 문서 필드: `date`(KST yyyy-mm-dd), `channelId`, `brandName`, `snsType`, `source: 'manual'`, `status`, `topic`, `fixedHashtags[]`, `input{content, instructions, languages[]}`, `posts[]{language, keyword, title, body, hashtags[], cards[]}`, `createdAt`, `updatedAt`
+  - (구현) `posts[].hashtags`는 생성 해시태그만 저장하고, 고정 해시태그는 `fixedHashtags`에 따로 둔다. 복사할 때 `composeCopyText()`로 합친다.
 - `topicHistory/{id}` — 채널별 다룬 주제 이력(중복 방지)
 - `jobs/{jobId}` — 자동 생성 작업 상태와 오류 기록
 - `images/{imageId}` — 이미지 보관함(원본 경로, 업로드 날짜, 태그)
 - `settings/app` — 생성 시간, 관리자 이메일 등
 
 ---
+
+## 8-1. 생성 서버 구조 (3단계 구현)
+
+- `POST /api/generate` (`netlify/functions/generate.ts`): 게시물 1개(언어 1개)를 생성한다.
+  - Netlify 동기 함수는 **30초 제한**이므로 언어별로 나눠 화면에서 동시에 호출하고, OpenAI 호출은 25초에서 끊고 안내한다.
+  - Firebase ID 토큰을 Google 공개 키로 검증(`netlify/lib/auth.ts`, 서비스 계정 불필요) + `ADMIN_EMAILS` 확인 후에만 실행.
+  - OpenAI Chat Completions + JSON 스키마(구조화 출력). 모델은 `OPENAI_MODEL`, 추론형 모델이면 선택 설정 `OPENAI_REASONING_EFFORT`(예: low)로 속도를 높인다.
+  - 생성 후 코드로 한 번 더 보장: 사이트 주소 누락 시 덧붙임, X·링크드인은 `https://` 제거, 본문 끝 해시태그 줄은 해시태그 칸으로 이동, 고정 해시태그와 중복 제거.
+- 화면: 결과를 노출 검사(`checkReach`)해서 통과 못 한 항목이 있으면 그 항목을 지정해 1번 더 생성(보완)한다.
+- 저장은 화면에서 Firestore에 직접 한다(보안 규칙으로 관리자만 가능). 수정 내용은 입력이 멈추고 1초 뒤 자동 저장.
+- 생성이 끝나면 첫 언어 결과를 자동 복사하고, 브라우저가 막으면 [복사하기] 안내.
 
 ## 9. 보안
 
