@@ -160,7 +160,8 @@ export function useChannels() {
     // 화면에 먼저 반영하고 저장한다(저장소 연결이 없어도 화면에서는 동작).
     setChannels((prev) => {
       const exists = prev.some((c) => c.id === ch.id)
-      return exists ? prev.map((c) => (c.id === ch.id ? ch : c)) : [...prev, ch]
+      const next = exists ? prev.map((c) => (c.id === ch.id ? ch : c)) : [...prev, ch]
+      return next.sort((a, b) => a.order - b.order)
     })
     if (!db) return
     const { id, ...rest } = ch

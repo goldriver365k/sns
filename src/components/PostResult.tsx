@@ -32,8 +32,9 @@ type Props = {
   /** 생성이 끝나고 자동 복사를 시도한 결과 알림 */
   autoCopyNotice: string | null
   onEdit: (lang: string, post: GeneratedPost) => void
-  onRetry: (lang: string) => void
-  onRegenerate: () => void
+  onRetry?: (lang: string) => void
+  /** 없으면 [다시 생성] 버튼을 숨긴다 (지난 콘텐츠 화면) */
+  onRegenerate?: () => void
   onApprove: () => void
 }
 
@@ -109,7 +110,7 @@ export default function PostResult(props: Props) {
       {r?.status === 'error' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-4 py-16 text-center">
           <p className="text-[15px] text-red-700">{r.error}</p>
-          <button onClick={() => props.onRetry(active)} className={btnGhost}>다시 시도</button>
+          {props.onRetry && <button onClick={() => props.onRetry?.(active)} className={btnGhost}>다시 시도</button>}
         </div>
       )}
 
@@ -129,7 +130,7 @@ export default function PostResult(props: Props) {
       )}
 
       <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-cream-300 pt-4">
-        <button onClick={props.onRegenerate} disabled={busy} className={btnGhost}>다시 생성</button>
+        {props.onRegenerate && <button onClick={props.onRegenerate} disabled={busy} className={btnGhost}>다시 생성</button>}
         <button onClick={props.onApprove} disabled={busy || approved} className={btnPrimary}>
           {approved ? '승인됨' : '승인'}
         </button>
