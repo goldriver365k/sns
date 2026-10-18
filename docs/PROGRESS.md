@@ -17,5 +17,6 @@
 - [ ] 새 Firebase 프로젝트 생성 및 웹 앱 설정값 (docs/SETUP.md 1번)
 - [ ] 새 Netlify 사이트 연결 (docs/SETUP.md 2번)
 - [ ] OpenAI API 키와 사용할 모델 이름 (3단계 전)
-- [ ] 행운·복·대박 주문 채널의 추가 규칙 (SPEC 5-4)
+- [x] 행운·복·대박 주문 채널: 원고에 wishanddo.life 포함 (SPEC 5-4) — 그 밖의 규칙이 있으면 추가
+- [x] 화산불백: 카드 하단 + 캡션에 bulbaek.com 포함 (SPEC 5-2)
 - [ ] Hello Korean 사이트 주소와 추가 규칙 (SPEC 5-5, 기본값 hellokorean.site)
