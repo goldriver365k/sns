@@ -1,4 +1,4 @@
-import type { GenerateRequest, GeneratedPost } from '../../shared/generate'
+import { LANGUAGE_NAMES, type GenerateRequest, type GeneratedPost } from '../../shared/generate'
 import { getSnsProfile } from '../../shared/sns'
 import { AuthError, requireAdmin } from '../lib/auth'
 import { buildMessages, finalizePost, POST_SCHEMA } from '../lib/prompt'
@@ -7,6 +7,35 @@ import { buildMessages, finalizePost, POST_SCHEMA } from '../lib/prompt'
 // (/.netlify/ 주소는 netlify.toml의 페이지 리다이렉트 규칙에 영향을 받지 않는다) 여러 언어는 화면에서 언어별로 나눠 동시에 호출한다.
 // Netlify 동기 함수는 30초 제한이 있어 OpenAI 호출은 25초에서 끊고 안내한다.
 const OPENAI_TIMEOUT_MS = 25_000
+
+/** 지나치게 긴 입력은 잘라서 AI 요청이 커지지 않게 한다 */
+const cut = (v: unknown, max: number) => String(v ?? '').slice(0, max)
+function sanitize(r: GenerateRequest): GenerateRequest {
+  return {
+    snsType: r.snsType,
+    language: r.language,
+    content: cut(r.content, 1000),
+    instructions: cut(r.instructions, 1000),
+    topic: r.topic ? cut(r.topic, 200) : undefined,
+    brand: r.brand && {
+      name: cut(r.brand.name, 60),
+      siteUrl: cut(r.brand.siteUrl, 120),
+      description: cut(r.brand.description, 500),
+      rules: cut(r.brand.rules, 1000),
+      hashtags: (Array.isArray(r.brand.hashtags) ? r.brand.hashtags : []).slice(0, 20).map((t) => cut(t, 50)),
+    },
+    fix: r.fix && {
+      previous: {
+        keyword: cut(r.fix.previous?.keyword, 100),
+        title: cut(r.fix.previous?.title, 300),
+        body: cut(r.fix.previous?.body, 12000),
+        hashtags: (r.fix.previous?.hashtags ?? []).slice(0, 30).map((t) => cut(t, 50)),
+        cards: (r.fix.previous?.cards ?? []).slice(0, 3).map((c) => ({ title: cut(c.title, 200), body: cut(c.body, 600), emphasis: cut(c.emphasis, 100) })),
+      },
+      failed: (r.fix.failed ?? []).slice(0, 10).map((f) => cut(f, 100)),
+    },
+  }
+}
 
 const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8' } })
@@ -28,7 +57,8 @@ export default async (req: Request) => {
   }
   const profile = getSnsProfile(input.snsType)
   if (!profile) return json(400, { error: 'SNS 종류를 선택해 주세요.' })
-  if (!input.language) return json(400, { error: '언어를 선택해 주세요.' })
+  if (!input.language || !(input.language in LANGUAGE_NAMES)) return json(400, { error: '언어를 선택해 주세요.' })
+  input = sanitize(input)
   if (!input.content?.trim() && !input.topic) return json(400, { error: '콘텐츠 내용이나 계획을 입력해 주세요.' })
   if ((input.content?.length ?? 0) > 1000 || (input.instructions?.length ?? 0) > 1000) {
     return json(400, { error: '입력은 1000자까지 가능합니다.' })

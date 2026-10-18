@@ -1,5 +1,3 @@
-import JSZip from 'jszip'
-
 export function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) =>
     canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('이미지를 만들지 못했습니다.'))), 'image/png'),
@@ -22,6 +20,7 @@ export function downloadPng(blob: Blob, filename: string) {
 }
 
 export async function downloadZip(files: { name: string; blob: Blob }[], zipName: string) {
+  const { default: JSZip } = await import('jszip') // 압축할 때만 내려받는다
   const zip = new JSZip()
   files.forEach((f) => zip.file(f.name, f.blob))
   downloadBlob(await zip.generateAsync({ type: 'blob' }), zipName)

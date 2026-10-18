@@ -1,7 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
 import { initializeFirestore, type Firestore } from 'firebase/firestore'
-import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 const env = import.meta.env
 
@@ -24,17 +23,16 @@ export const isFirebaseConfigured = Boolean(
 let app: FirebaseApp | null = null
 let auth: Auth | null = null
 let db: Firestore | null = null
-let storage: FirebaseStorage | null = null
 
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig)
   auth = getAuth(app)
   // 값이 비어 있는(undefined) 항목은 저장 오류 대신 건너뛴다(편집기 초기화 등)
   db = initializeFirestore(app, { ignoreUndefinedProperties: true })
-  storage = getStorage(app)
 }
 
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 
-export { app, auth, db, storage }
+// Storage는 이미지 보관함을 켤 때 추가한다(지금은 첫 화면 용량을 줄이려고 불러오지 않음)
+export { app, auth, db }

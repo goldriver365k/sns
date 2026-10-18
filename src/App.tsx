@@ -1,15 +1,21 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './lib/auth'
 import { isFirebaseConfigured } from './lib/firebase'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import SetupNeeded from './pages/SetupNeeded'
-import CreatePost from './pages/CreatePost'
-import TodayContents from './pages/TodayContents'
-import ContentCalendar from './pages/ContentCalendar'
-import ImageLibrary from './pages/ImageLibrary'
-import PastContents from './pages/PastContents'
-import OpsSettings from './pages/OpsSettings'
+import OfflineBanner from './components/OfflineBanner'
+
+// 화면별로 나눠 내려받는다 (첫 화면을 빠르게)
+const CreatePost = lazy(() => import('./pages/CreatePost'))
+const TodayContents = lazy(() => import('./pages/TodayContents'))
+const ContentCalendar = lazy(() => import('./pages/ContentCalendar'))
+const ImageLibrary = lazy(() => import('./pages/ImageLibrary'))
+const PastContents = lazy(() => import('./pages/PastContents'))
+const OpsSettings = lazy(() => import('./pages/OpsSettings'))
+
+const Loading = () => <div className="py-20 text-center text-muted">불러오는 중…</div>
 
 export default function App() {
   const { user, loading } = useAuth()
@@ -21,6 +27,9 @@ export default function App() {
   if (!user) return <Login />
 
   return (
+    <>
+    <OfflineBanner />
+    <Suspense fallback={<Loading />}>
     <Routes>
       <Route element={<Layout />}>
         {/* 로그인 후 첫 화면: SNS 게시물 만들기 */}
@@ -34,5 +43,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/create" replace />} />
       </Route>
     </Routes>
+    </Suspense>
+    </>
   )
 }

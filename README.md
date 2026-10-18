@@ -5,6 +5,7 @@
 - 기준 문서: [docs/SPEC.md](docs/SPEC.md)
 - 설정 안내: [docs/SETUP.md](docs/SETUP.md)
 - 진행 현황: [docs/PROGRESS.md](docs/PROGRESS.md)
+- 운영 안내: [docs/OPERATIONS.md](docs/OPERATIONS.md)
 
 ```bash
 npm install
