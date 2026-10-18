@@ -44,7 +44,7 @@
 
 | 이름 | 값 | 비고 |
 | --- | --- | --- |
-| `VITE_FIREBASE_API_KEY` 외 5개 | 1-1의 firebaseConfig 값 | 브라우저용(공개 가능) |
+| `VITE_FIREBASE_API_KEY` 외 5개 | 1-1의 firebaseConfig 값 | **입력 불필요** — snsroom 프로젝트 값이 코드에 들어 있음. 다른 프로젝트로 바꿀 때만 입력 |
 | `VITE_ADMIN_EMAILS` | `higidia@gmail.com` | 화면 접근 허용 |
 | `ADMIN_EMAILS` | `higidia@gmail.com` | 서버 접근 허용 |
 | `FIREBASE_SERVICE_ACCOUNT` | 1-5 JSON 전체 | **비밀값** |
