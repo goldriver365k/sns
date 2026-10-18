@@ -26,6 +26,8 @@ export type Channel = {
   hashtags: string[]
   plans: PlanItem[]
   order: number
+  /** 인스타그램 카드 기본 디자인 (simple/photo/premium/mz/info) */
+  defaultDesign?: string
 }
 
 export const WEEKDAYS = ['월', '화', '수', '목', '금', '토', '일'] as const
@@ -49,6 +51,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'bulbaek',
     name: '화산불백',
+    defaultDesign: 'info',
     hashtags: ['#화산불백', '#불백', '#직화불백덮밥'],
     sns: 'instagram',
     siteUrl: 'bulbaek.com',
@@ -69,6 +72,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'hurururuk',
     name: '후루룩찹찹',
+    defaultDesign: 'mz',
     hashtags: ['#후루룩찹찹'],
     sns: 'instagram',
     siteUrl: '',
@@ -88,6 +92,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'haengbok',
     name: '행복대운',
+    defaultDesign: 'premium',
     hashtags: ['#행복대운', '#행운주문'],
     sns: 'threads',
     siteUrl: 'wishanddo.life',
@@ -99,6 +104,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'hellokorean',
     name: 'Hello Korean',
+    defaultDesign: 'simple',
     hashtags: ['#HelloKorean', '#LearnKorean'],
     sns: 'threads',
     siteUrl: 'hellokorean.site',

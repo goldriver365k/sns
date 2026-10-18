@@ -22,6 +22,8 @@ type Run = {
   request: Omit<GenerateRequest, 'language'>
   channelId: string | null
   brandName: string
+  siteUrl: string
+  defaultDesign: string
   topic: string
   fixedHashtags: string[]
 }
@@ -195,6 +197,8 @@ export default function CreatePost() {
       },
       channelId: brand?.id ?? null,
       brandName: brand?.name ?? '',
+      siteUrl: brand?.siteUrl ?? '',
+      defaultDesign: brand?.defaultDesign ?? 'simple',
       topic: plan?.topic ?? '',
       fixedHashtags: brand?.hashtags ?? [],
     })
@@ -373,6 +377,7 @@ export default function CreatePost() {
               languages={run.languages}
               results={results}
               fixedHashtags={run.fixedHashtags}
+              brand={{ name: run.brandName, siteUrl: run.siteUrl, defaultDesign: run.defaultDesign, fileKey: (run.channelId ?? '').replace(/[^a-zA-Z0-9-]/g, '') || 'card' }}
               approved={approved}
               saveState={saveState}
               autoCopyNotice={autoCopyNotice}

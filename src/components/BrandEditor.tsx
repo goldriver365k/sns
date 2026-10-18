@@ -4,6 +4,7 @@ import { btnDanger, btnGhost, btnPrimary, fieldLabel, inputBase } from './ui'
 import { SNS_TYPES } from '../lib/options'
 import type { Channel } from '../lib/channels'
 import { parseHashtags } from '../../shared/hashtags'
+import { DESIGNS } from '../cards/designs'
 
 type Props = {
   /** 수정할 브랜드. 새로 추가할 때는 빈 값이 들어온다. */
@@ -67,6 +68,12 @@ export default function BrandEditor({ initial, isNew, onSave, onDelete, onClose 
           <select id="b-sns" value={ch.sns} onChange={(e) => set('sns', e.target.value as Channel['sns'])} className={inputBase}>
             <option value="">정하지 않음</option>
             {SNS_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <label htmlFor="b-design" className={fieldLabel}>인스타그램 카드 기본 디자인</label>
+          <select id="b-design" value={ch.defaultDesign ?? 'simple'} onChange={(e) => set('defaultDesign', e.target.value)} className={inputBase}>
+            {DESIGNS.map((d) => <option key={d.id} value={d.id}>{d.name} — {d.fontLabel}</option>)}
           </select>
         </div>
         <div>

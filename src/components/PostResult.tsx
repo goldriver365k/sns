@@ -5,6 +5,10 @@ import { composeCopyText, pickHashtags } from '../../shared/hashtags'
 import { LANGUAGES } from '../lib/options'
 import { copyText } from '../lib/clipboard'
 import { btnGhost, btnPrimary, inputBase } from './ui'
+import InstagramCards from './InstagramCards'
+
+/** 카드 하단 주소·파일 이름·기본 디자인에 쓰는 브랜드 정보 */
+export type CardBrand = { name: string; siteUrl: string; defaultDesign: string; fileKey: string }
 
 export type LangResult = {
   status: 'loading' | 'fixing' | 'done' | 'error'
@@ -17,6 +21,7 @@ type Props = {
   languages: string[]
   results: Record<string, LangResult>
   fixedHashtags: string[]
+  brand: CardBrand
   approved: boolean
   saveState: 'saving' | 'saved' | 'error' | null
   /** 생성이 끝나고 자동 복사를 시도한 결과 알림 */
@@ -109,8 +114,10 @@ export default function PostResult(props: Props) {
           profile={profile}
           post={r.post}
           fixedHashtags={fixedHashtags}
+          brand={props.brand}
           onChange={(p) => props.onEdit(active, p)}
           onCopy={copy}
+          onMessage={showToast}
         />
       )}
 
@@ -130,12 +137,14 @@ export default function PostResult(props: Props) {
   )
 }
 
-function PostEditor({ profile, post, fixedHashtags, onChange, onCopy }: {
+function PostEditor({ profile, post, fixedHashtags, brand, onChange, onCopy, onMessage }: {
   profile: SnsProfile
   post: GeneratedPost
   fixedHashtags: string[]
+  brand: CardBrand
   onChange: (p: GeneratedPost) => void
   onCopy: (text: string) => void
+  onMessage: (msg: string) => void
 }) {
   const text = finalText(profile, post, fixedHashtags)
   const tags = pickHashtags(post.body, post.hashtags, fixedHashtags, profile.hashtags[1])
@@ -168,9 +177,18 @@ function PostEditor({ profile, post, fixedHashtags, onChange, onCopy }: {
       )}
 
       {profile.kind === 'cards' && post.cards.length > 0 && (
-        <div>
-          <div className="mb-1 text-sm font-semibold text-forest-900">카드 글</div>
-          <p className="mb-2 text-xs text-muted">카드 이미지 미리보기와 PNG 저장은 다음 단계에서 추가됩니다.</p>
+        <div className="space-y-4">
+          <InstagramCards
+            cards={post.cards}
+            fileKey={brand.fileKey}
+            brandName={brand.name}
+            siteUrl={brand.siteUrl}
+            defaultDesign={brand.defaultDesign}
+            onChange={(cards) => set({ cards })}
+            onMessage={onMessage}
+          />
+          <div className="text-sm font-semibold text-forest-900">카드 글 수정</div>
+          <p className="-mt-3 text-xs text-muted">고치면 카드에 바로 반영됩니다. 길어지면 글씨가 자동으로 작아집니다.</p>
           <div className="grid gap-2 sm:grid-cols-3">
             {post.cards.map((card, i) => (
               <CardFields key={i} index={i} card={card} onChange={(c) => set({ cards: post.cards.map((x, j) => (j === i ? c : x)) })} />
@@ -210,7 +228,7 @@ function CardFields({ index, card, onChange }: { index: number; card: CardText; 
   return (
     <div className="space-y-1.5 rounded-xl border border-cream-300 bg-cream-50 p-3">
       <div className="text-xs font-semibold text-muted">카드 {index + 1}</div>
-      <input aria-label={`카드 ${index + 1} 제목`} value={card.title} onChange={(e) => onChange({ ...card, title: e.target.value })} className={`${field} font-semibold`} />
+      <textarea aria-label={`카드 ${index + 1} 제목`} rows={2} value={card.title} onChange={(e) => onChange({ ...card, title: e.target.value })} className={`${field} resize-y font-semibold`} />
       <textarea aria-label={`카드 ${index + 1} 본문`} rows={3} value={card.body} onChange={(e) => onChange({ ...card, body: e.target.value })} className={`${field} resize-y`} />
       <input aria-label={`카드 ${index + 1} 강조 문구`} placeholder="강조 문구" value={card.emphasis} onChange={(e) => onChange({ ...card, emphasis: e.target.value })} className={field} />
     </div>

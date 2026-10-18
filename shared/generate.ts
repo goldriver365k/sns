@@ -21,6 +21,8 @@ export type CardText = {
   title: string
   body: string
   emphasis: string
+  /** 카드 디자인 (화면에서 고름, 없으면 브랜드 기본 디자인) */
+  design?: string
 }
 
 export type GeneratedPost = {
