@@ -15,13 +15,16 @@ type Props = {
   isInstagram: boolean
 }
 
+/** AI 이미지 만들기 — 사용자 요청으로 보류. 다시 쓰려면 true로 바꾸고 OPENAI_IMAGE_MODEL을 설정한다. */
+const AI_IMAGE_ENABLED = false
+
 const STYLES = [
   { value: 'photo', label: '사진 느낌' },
   { value: 'illust', label: '일러스트' },
   { value: 'minimal', label: '미니멀 배경' },
 ]
 
-/** 이미지 넣기: 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 찾기 · AI로 만들기 */
+/** 이미지 넣기: 붙여넣기(Ctrl+V) · 끌어다 놓기 · 파일 찾기 (AI로 만들기는 보류) */
 export default function ImagePicker({ images, onChange, snsType, brandName, foodBrand, suggestion, isInstagram }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [drag, setDrag] = useState(false)
@@ -149,9 +152,9 @@ export default function ImagePicker({ images, onChange, snsType, brandName, food
           <button type="button" disabled={full} onClick={() => fileRef.current?.click()} className="rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-sm font-medium text-forest-700 hover:border-forest-500 disabled:opacity-40">
             파일 찾기
           </button>
-          <button type="button" disabled={full} onClick={() => setAiOpen((v) => !v)} className="rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-sm font-medium text-forest-700 hover:border-forest-500 disabled:opacity-40">
+          {AI_IMAGE_ENABLED && <button type="button" disabled={full} onClick={() => setAiOpen((v) => !v)} className="rounded-lg border border-cream-300 bg-cream-50 px-3 py-2 text-sm font-medium text-forest-700 hover:border-forest-500 disabled:opacity-40">
             AI로 만들기
-          </button>
+          </button>}
         </div>
         <input
           ref={fileRef}
@@ -166,7 +169,7 @@ export default function ImagePicker({ images, onChange, snsType, brandName, food
         />
       </div>
 
-      {aiOpen && !full && (
+      {AI_IMAGE_ENABLED && aiOpen && !full && (
         <div className="mt-3 space-y-3 rounded-xl border border-cream-300 bg-white p-4">
           <textarea
             aria-label="만들 이미지 설명"
