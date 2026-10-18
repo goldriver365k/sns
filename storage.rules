@@ -1,0 +1,19 @@
+rules_version = '2';
+
+// 허용된 관리자 이메일만 업로드·다운로드 가능. 이미지 파일만, 20MB 이하.
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['higidia@gmail.com'];
+    }
+
+    match /{allPaths=**} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        && request.resource.size < 20 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}

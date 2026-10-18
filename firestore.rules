@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// 허용된 관리자 이메일만 읽기·쓰기 가능.
+// 관리자를 추가하려면 아래 목록과 Netlify 환경변수 ADMIN_EMAILS, VITE_ADMIN_EMAILS를 함께 수정한다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email in ['higidia@gmail.com'];
+    }
+
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
