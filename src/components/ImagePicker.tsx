@@ -128,7 +128,7 @@ export default function ImagePicker({ images, onChange, snsType, brandName, food
               <li key={img.id} className="group relative overflow-hidden rounded-lg border border-cream-300 bg-cream-100">
                 <img src={img.url} alt={`이미지 ${i + 1}`} className="aspect-square w-full object-cover" />
                 <span className="absolute top-1 left-1 rounded bg-black/55 px-1.5 text-[11px] text-white">
-                  {isInstagram ? `카드 ${i + 1}` : i + 1}
+                  {isInstagram && i < 3 ? `카드 ${i + 1}` : i + 1}
                   {img.source === 'ai' && ' · AI'}
                 </span>
                 <button type="button" aria-label={`이미지 ${i + 1} 빼기`} onClick={() => remove(img.id)} className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-sm leading-6 text-white hover:bg-red-600">
@@ -198,7 +198,7 @@ export default function ImagePicker({ images, onChange, snsType, brandName, food
       )}
 
       {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
-      {isInstagram && images.length > 0 && <p className="mt-1 text-xs text-muted">순서대로 카드 1·2·3에 들어갑니다. ‹ › 로 순서를 바꿀 수 있습니다.</p>}
+      {isInstagram && images.length > 0 && <p className="mt-1 text-xs text-muted">앞의 3장이 순서대로 카드 1·2·3에 들어갑니다. ‹ › 로 순서를 바꾸거나, 카드 편집기에서 카드마다 고를 수 있습니다.</p>}
     </div>
   )
 }

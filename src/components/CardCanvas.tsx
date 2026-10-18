@@ -27,7 +27,7 @@ const CardCanvas = forwardRef<CardCanvasHandle, Props>(function CardCanvas({ des
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return null
-    const fontOk = await ensureFonts(design, text)
+    const fontOk = await ensureFonts(design, text, card.overrides)
     const report = renderCard(ctx, design, card)
     return { ...report, fontOk }
   }
@@ -43,7 +43,7 @@ const CardCanvas = forwardRef<CardCanvasHandle, Props>(function CardCanvas({ des
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [design, card.title, card.body, card.emphasis, card.siteUrl, card.index, card.total, card.image])
+  }, [design, card.title, card.body, card.emphasis, card.siteUrl, card.index, card.total, card.image, JSON.stringify(card.overrides ?? null)])
 
   useImperativeHandle(ref, () => ({
     async prepare() {

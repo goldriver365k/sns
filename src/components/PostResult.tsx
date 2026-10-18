@@ -26,6 +26,7 @@ type Props = {
   brand: CardBrand
   /** 입력 폼에서 넣은 이미지 (인스타그램은 카드에, 그 외 SNS는 결과 아래에 표시) */
   images: PickedImage[]
+  onImagesChange: (images: PickedImage[]) => void
   approved: boolean
   saveState: 'saving' | 'saved' | 'error' | null
   /** 생성이 끝나고 자동 복사를 시도한 결과 알림 */
@@ -120,6 +121,7 @@ export default function PostResult(props: Props) {
           fixedHashtags={fixedHashtags}
           brand={props.brand}
           images={props.images}
+          onImagesChange={props.onImagesChange}
           onChange={(p) => props.onEdit(active, p)}
           onCopy={copy}
           onMessage={showToast}
@@ -142,12 +144,13 @@ export default function PostResult(props: Props) {
   )
 }
 
-function PostEditor({ profile, post, fixedHashtags, brand, images, onChange, onCopy, onMessage }: {
+function PostEditor({ profile, post, fixedHashtags, brand, images, onImagesChange, onChange, onCopy, onMessage }: {
   profile: SnsProfile
   post: GeneratedPost
   fixedHashtags: string[]
   brand: CardBrand
   images: PickedImage[]
+  onImagesChange: (images: PickedImage[]) => void
   onChange: (p: GeneratedPost) => void
   onCopy: (text: string) => void
   onMessage: (msg: string) => void
@@ -187,6 +190,7 @@ function PostEditor({ profile, post, fixedHashtags, brand, images, onChange, onC
           <InstagramCards
             cards={post.cards}
             images={images}
+            onImagesChange={onImagesChange}
             fileKey={brand.fileKey}
             brandName={brand.name}
             siteUrl={brand.siteUrl}

@@ -1,4 +1,5 @@
 /** 생성 요청·응답 형식 (화면과 서버 공용) */
+import type { CardOverrides } from './cards'
 
 export const LANGUAGE_NAMES: Record<string, string> = {
   ko: '한국어',
@@ -23,6 +24,10 @@ export type CardText = {
   emphasis: string
   /** 카드 디자인 (화면에서 고름, 없으면 브랜드 기본 디자인) */
   design?: string
+  /** 카드 편집기에서 바꾼 배치·글씨 모양 */
+  overrides?: CardOverrides
+  /** 이 카드에 넣을 이미지 id (없으면 이미지 칸의 순서대로, null이면 사진 없음) */
+  imageId?: string | null
 }
 
 export type GeneratedPost = {

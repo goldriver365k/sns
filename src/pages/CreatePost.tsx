@@ -393,6 +393,7 @@ export default function CreatePost() {
               results={results}
               fixedHashtags={run.fixedHashtags}
               images={images}
+              onImagesChange={setImages}
               brand={{ name: run.brandName, siteUrl: run.siteUrl, defaultDesign: run.defaultDesign, fileKey: (run.channelId ?? '').replace(/[^a-zA-Z0-9-]/g, '') || 'card' }}
               approved={approved}
               saveState={saveState}

@@ -60,5 +60,14 @@ export const DESIGNS: DesignInfo[] = [
 
 export const getDesign = (id: string | undefined): DesignInfo => DESIGNS.find((d) => d.id === id) ?? DESIGNS[0]
 
+/** 편집기에서 고를 수 있는 폰트와 쓸 수 있는 굵기 */
+export const FONT_OPTIONS: { family: string; label: string; weights: number[] }[] = [
+  { family: 'Noto Sans KR', label: 'Noto Sans KR', weights: [400, 700, 900] },
+  { family: 'Pretendard Variable', label: 'Pretendard', weights: [300, 400, 500, 600, 700, 800, 900] },
+  { family: 'Jua', label: '배민 주아체', weights: [400] },
+  { family: 'ACM MaruBuri', label: '마루 부리', weights: [400, 700] },
+  { family: 'ACM Cafe24 SsurroundAir', label: '카페24 써라운드에어', weights: [400] },
+]
+
 /** 하단 주소 표시에 쓰는 폰트 (모든 디자인 공통) */
 export const FOOTER_FONT: FontSpec = { family: 'Pretendard Variable', weight: 700 }

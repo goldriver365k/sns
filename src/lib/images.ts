@@ -9,7 +9,8 @@ export type PickedImage = {
   height: number
 }
 
-export const MAX_IMAGES = 3
+/** 이번 작업에서 쓰는 이미지 최대 개수 (입력 폼 + 카드 편집기 합계) */
+export const MAX_IMAGES = 10
 /** 긴 변 최대 크기 — 카드(1080×1350)에 충분하고 휴대폰 메모리를 아낀다 */
 const MAX_SIDE = 2160
 

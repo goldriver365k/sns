@@ -1,6 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth'
-import { getFirestore, type Firestore } from 'firebase/firestore'
+import { initializeFirestore, type Firestore } from 'firebase/firestore'
 import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 const env = import.meta.env
@@ -29,7 +29,8 @@ let storage: FirebaseStorage | null = null
 if (isFirebaseConfigured) {
   app = initializeApp(firebaseConfig)
   auth = getAuth(app)
-  db = getFirestore(app)
+  // 값이 비어 있는(undefined) 항목은 저장 오류 대신 건너뛴다(편집기 초기화 등)
+  db = initializeFirestore(app, { ignoreUndefinedProperties: true })
   storage = getStorage(app)
 }
 

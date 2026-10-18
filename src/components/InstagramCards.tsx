@@ -7,11 +7,14 @@ import CardCanvas, { type CardCanvasHandle, type CardCheck } from './CardCanvas'
 import { todayKst } from '../lib/contents'
 import { btnGhost, btnPrimary } from './ui'
 import type { PickedImage } from '../lib/images'
+import { toCardInput } from '../cards/input'
+import CardEditor from './CardEditor'
 
 type Props = {
   cards: CardText[]
   /** 입력 폼의 이미지 — 순서대로 카드 1·2·3에 들어간다 */
   images: PickedImage[]
+  onImagesChange: (images: PickedImage[]) => void
   /** 파일 이름에 쓰는 영문 이름 (압축 파일에서 한글 이름이 깨지지 않게) */
   fileKey: string
   brandName: string
@@ -23,18 +26,20 @@ type Props = {
 
 const bare = (url: string) => url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
 
-export default function InstagramCards({ cards, images, fileKey, brandName, siteUrl, defaultDesign, onChange, onMessage }: Props) {
+export default function InstagramCards({ cards, images, onImagesChange, fileKey, brandName, siteUrl, defaultDesign, onChange, onMessage }: Props) {
   const [perCard, setPerCard] = useState(false)
   const [selected, setSelected] = useState(0)
   const [checks, setChecks] = useState<Record<number, CardCheck>>({})
   const [busy, setBusy] = useState(false)
+  /** 열려 있는 편집기의 시작 카드 (닫혀 있으면 null) */
+  const [editing, setEditing] = useState<number | null>(null)
   const refs = useRef<(CardCanvasHandle | null)[]>([])
   const site = bare(siteUrl)
 
   const designOf = (i: number) => getDesign(cards[i]?.design ?? defaultDesign).id
   const inputs: CardInput[] = useMemo(
-    () => cards.map((c, i) => ({ title: c.title, body: c.body, emphasis: c.emphasis, index: i, total: cards.length, siteUrl: site, brandName, image: images[i]?.el ?? null })),
-    [cards, site, brandName, images],
+    () => cards.map((_, i) => toCardInput(cards, i, { siteUrl, brandName, images })),
+    [cards, siteUrl, brandName, images],
   )
 
   function chooseDesign(id: DesignId) {
@@ -54,7 +59,7 @@ export default function InstagramCards({ cards, images, fileKey, brandName, site
       const { canvas, check } = await handle.prepare()
       setChecks((prev) => ({ ...prev, [i]: check }))
       if (!check.fontOk) problems.push(`카드 ${i + 1}: 폰트를 불러오지 못해 한글이 깨질 수 있습니다. 새로고침 후 다시 시도해 주세요.`)
-      if (check.overflow.length) problems.push(`카드 ${i + 1}: ${check.overflow.join('·')}이 너무 길어 잘립니다. 글을 줄여 주세요.`)
+      if (check.overflow.length) problems.push(`카드 ${i + 1}: ${check.overflow.join('·')} — 잘리거나 카드 밖에 있습니다. [편집기에서 수정]으로 고쳐 주세요.`)
       if (!check.footerOk) problems.push(`카드 ${i + 1}: ${site} 주소가 보이지 않습니다.`)
       if (check.footerRepaired) repaired = true
       out.push({ name: fileName(i), blob: await canvasToPng(canvas) })
@@ -84,7 +89,7 @@ export default function InstagramCards({ cards, images, fileKey, brandName, site
     const c = checks[i]
     if (!c) return null
     if (!c.fontOk) return '폰트 확인 필요'
-    if (c.overflow.length) return `${c.overflow.join('·')} 잘림 — 글을 줄여 주세요`
+    if (c.overflow.length) return `${c.overflow.join('·')} 확인 필요`
     if (!c.footerOk) return '주소 표시 안 됨'
     return null
   }
@@ -129,9 +134,9 @@ export default function InstagramCards({ cards, images, fileKey, brandName, site
             <div key={i} className="min-w-0">
               <button
                 type="button"
-                onClick={() => setSelected(i)}
+                onClick={() => (perCard ? setSelected(i) : setEditing(i))}
                 className={`block w-full rounded-xl border-2 p-0.5 ${perCard && selected === i ? 'border-forest-700' : 'border-transparent'}`}
-                aria-label={`카드 ${i + 1} 선택`}
+                aria-label={perCard ? `카드 ${i + 1} 선택` : `카드 ${i + 1} 편집`}
               >
                 <CardCanvas
                   ref={(h) => {
@@ -161,10 +166,25 @@ export default function InstagramCards({ cards, images, fileKey, brandName, site
         <button type="button" disabled={busy} onClick={() => run((f) => downloadZip(f, fileName(0).replace(/_1\.png$/, '.zip')))} className={btnGhost}>
           전체 ZIP 다운로드
         </button>
-        <button type="button" disabled title="다음 단계(카드 편집기)에서 추가됩니다" className={`${btnGhost} cursor-not-allowed opacity-50`}>
+        <button type="button" onClick={() => setEditing(perCard ? selected : 0)} className={btnGhost}>
           편집기에서 수정
         </button>
       </div>
+      {editing !== null && (
+        <CardEditor
+          cards={cards}
+          startIndex={editing}
+          images={images}
+          onImagesChange={onImagesChange}
+          defaultDesign={defaultDesign}
+          brandName={brandName}
+          siteUrl={siteUrl}
+          fileKey={fileKey}
+          onChange={onChange}
+          onClose={() => setEditing(null)}
+          onMessage={onMessage}
+        />
+      )}
       {site && <p className="text-xs text-muted">모든 카드 하단에 {site}가 고정 표시되며, 저장 전에 보이는지 자동 검사합니다.</p>}
     </div>
   )
