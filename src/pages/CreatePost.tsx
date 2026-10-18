@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import { IconPhone } from '../components/Icons'
-import { BRANDS, LANGUAGES, MAX_TEXT, SNS_TYPES, type Brand, type Language, type SnsType } from '../lib/options'
-
-const fieldLabel = 'mb-2 block text-[15px] font-semibold text-forest-900'
-const inputBase =
-  'w-full rounded-xl border border-cream-300 bg-white px-4 py-3 text-[15px] outline-none transition focus:border-forest-500 focus:ring-2 focus:ring-forest-100'
+import BrandEditor from '../components/BrandEditor'
+import PlanEditor from '../components/PlanEditor'
+import { btnLink, fieldLabel, inputBase } from '../components/ui'
+import { LANGUAGES, MAX_TEXT, SNS_TYPES, type Language, type SnsType } from '../lib/options'
+import { newId, todayWeekday, useChannels, type Channel } from '../lib/channels'
 
 function Required() {
   return <span className="ml-0.5 text-forest-500">*</span>
@@ -13,13 +13,49 @@ function Required() {
 
 export default function CreatePost() {
   const [snsType, setSnsType] = useState<SnsType | ''>('')
-  const [brand, setBrand] = useState<Brand>('')
+  const { channels, error: channelError, saveChannel, removeChannel } = useChannels()
+  const [brandId, setBrandId] = useState('')
+  const [planId, setPlanId] = useState('')
+  /** 열려 있는 편집 창: 브랜드 수정 / 브랜드 추가 / 계획 편집 */
+  const [editing, setEditing] = useState<'brand' | 'newBrand' | 'plan' | null>(null)
   const [content, setContent] = useState('')
   const [languages, setLanguages] = useState<Language[]>(['ko'])
   const [instructions, setInstructions] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
 
-  const canSubmit = snsType !== '' && content.trim().length > 0 && languages.length > 0
+  const brand = channels.find((c) => c.id === brandId)
+  const plan = brand?.plans.find((p) => p.id === planId)
+  const weeklyPlans = brand?.plans.filter((p) => p.period === 'weekly') ?? []
+  const monthlyPlans = brand?.plans.filter((p) => p.period === 'monthly') ?? []
+
+  // 계획을 고르면 내용은 선택 사항이 된다.
+  const canSubmit = snsType !== '' && (content.trim().length > 0 || !!plan) && languages.length > 0
+
+  /** 브랜드를 바꾸면 오늘 요일의 주간 계획을 기본으로 고른다. */
+  function selectBrand(id: string, list: Channel[] = channels) {
+    setBrandId(id)
+    const today = list.find((c) => c.id === id)?.plans.find((p) => p.period === 'weekly' && p.when === todayWeekday())
+    setPlanId(today?.id ?? '')
+    const ch = list.find((c) => c.id === id)
+    if (ch?.sns && snsType === '') setSnsType(ch.sns)
+  }
+
+  async function handleSaveBrand(ch: Channel) {
+    await saveChannel(ch)
+    if (editing === 'newBrand') selectBrand(ch.id, [...channels, ch])
+  }
+
+  async function handleDeleteBrand() {
+    if (!brand) return
+    await removeChannel(brand.id)
+    setBrandId('')
+    setPlanId('')
+  }
+
+  async function handleSavePlans(ch: Channel) {
+    await saveChannel(ch)
+    if (!ch.plans.some((p) => p.id === planId)) setPlanId('')
+  }
 
   function toggleLanguage(lang: Language) {
     setLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]))
@@ -48,21 +84,51 @@ export default function CreatePost() {
           </div>
 
           <div>
-            <label htmlFor="brand" className={fieldLabel}>브랜드</label>
-            <select id="brand" value={brand} onChange={(e) => setBrand(e.target.value as Brand)} className={inputBase}>
-              {BRANDS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <div className="mb-2 flex items-center justify-between">
+              <label htmlFor="brand" className={`${fieldLabel} mb-0`}>브랜드</label>
+              <div className="flex gap-3">
+                {brand && <button type="button" onClick={() => setEditing('brand')} className={btnLink}>수정</button>}
+                <button type="button" onClick={() => setEditing('newBrand')} className={btnLink}>+ 추가</button>
+              </div>
+            </div>
+            <select id="brand" value={brandId} onChange={(e) => selectBrand(e.target.value)} className={inputBase}>
+              <option value="">선택 안 함</option>
+              {channels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+            {brand?.siteUrl && <p className="mt-1 text-xs text-muted">게시물에 {brand.siteUrl} 주소가 들어갑니다.</p>}
+            {channelError && <p className="mt-1 text-xs text-red-700">{channelError}</p>}
           </div>
 
           <div>
-            <label htmlFor="content" className={fieldLabel}>SNS 콘텐츠 내용<Required /></label>
+            <div className="mb-2 flex items-center justify-between">
+              <label htmlFor="plan" className={`${fieldLabel} mb-0`}>콘텐츠 계획</label>
+              {brand && <button type="button" onClick={() => setEditing('plan')} className={btnLink}>계획 편집</button>}
+            </div>
+            <select id="plan" value={planId} onChange={(e) => setPlanId(e.target.value)} disabled={!brand} className={`${inputBase} disabled:bg-cream-200 disabled:text-muted`}>
+              <option value="">{brand ? '계획 없이 직접 입력' : '브랜드를 먼저 선택해 주세요'}</option>
+              {weeklyPlans.length > 0 && (
+                <optgroup label="주간 계획">
+                  {weeklyPlans.map((p) => <option key={p.id} value={p.id}>{p.when} · {p.topic}</option>)}
+                </optgroup>
+              )}
+              {monthlyPlans.length > 0 && (
+                <optgroup label="월간 계획">
+                  {monthlyPlans.map((p) => <option key={p.id} value={p.id}>{p.when} · {p.topic}</option>)}
+                </optgroup>
+              )}
+            </select>
+            {plan?.period === 'weekly' && plan.when === todayWeekday() && <p className="mt-1 text-xs text-muted">오늘({plan.when}요일) 계획이 선택되어 있습니다.</p>}
+          </div>
+
+          <div>
+            <label htmlFor="content" className={fieldLabel}>SNS 콘텐츠 내용{!plan && <Required />}</label>
             <textarea
               id="content"
               rows={6}
               maxLength={MAX_TEXT}
               value={content}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="SNS에 게시할 콘텐츠의 내용을 간단히 작성해 주세요"
+              placeholder={plan ? `비워 두면 '${plan.topic}' 계획에 맞춰 작성합니다` : 'SNS에 게시할 콘텐츠의 내용을 간단히 작성해 주세요'}
               className={`${inputBase} resize-y`}
             />
             <div className="mt-1 text-right text-xs text-muted">{content.length}/{MAX_TEXT}</div>
@@ -124,6 +190,19 @@ export default function CreatePost() {
           </div>
         </section>
       </div>
+
+      {editing === 'brand' && brand && (
+        <BrandEditor initial={brand} isNew={false} onSave={handleSaveBrand} onDelete={handleDeleteBrand} onClose={() => setEditing(null)} />
+      )}
+      {editing === 'newBrand' && (
+        <BrandEditor
+          initial={{ id: newId(), name: '', sns: snsType, siteUrl: '', description: '', rules: '', plans: [], order: Math.max(-1, ...channels.map((c) => c.order)) + 1 }}
+          isNew
+          onSave={handleSaveBrand}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {editing === 'plan' && brand && <PlanEditor channel={brand} onSave={handleSavePlans} onClose={() => setEditing(null)} />}
     </div>
   )
 }

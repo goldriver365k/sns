@@ -6,14 +6,6 @@ export const SNS_TYPES = [
 ] as const
 export type SnsType = (typeof SNS_TYPES)[number]['value']
 
-export const BRANDS = [
-  { value: '', label: '선택 안 함' },
-  { value: 'hurururuk', label: '후루룩찹찹' },
-  { value: 'bulbaek', label: '화산불백' },
-  { value: 'hellokorean', label: 'Hello Korean' },
-] as const
-export type Brand = (typeof BRANDS)[number]['value']
-
 export const LANGUAGES = [
   { value: 'ko', label: '한국어' },
   { value: 'en', label: '영어' },
