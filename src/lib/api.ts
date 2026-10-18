@@ -37,3 +37,24 @@ export async function checkServer(): Promise<Record<string, string>> {
   if (!res.ok || !data) throw new Error(data?.error || `서버 점검 실패 (HTTP ${res.status})`)
   return data
 }
+
+/** AI로 이미지 1장을 만든다. data URL을 돌려준다. */
+export async function generateImage(req: { prompt: string; style: string; snsType: string; brandName: string; foodBrand: boolean }): Promise<string> {
+  const user = auth?.currentUser
+  if (!user) throw new Error('로그인이 필요합니다.')
+  let res: Response
+  try {
+    res = await fetch('/.netlify/functions/image', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${await user.getIdToken()}`, 'content-type': 'application/json' },
+      body: JSON.stringify(req),
+      signal: AbortSignal.timeout(35_000),
+    })
+  } catch (e) {
+    if (e instanceof Error && e.name === 'TimeoutError') throw new Error('응답이 너무 늦습니다. 다시 시도해 주세요.')
+    throw new Error('네트워크 연결을 확인한 뒤 다시 시도해 주세요.')
+  }
+  const data = await res.json().catch(() => null)
+  if (!res.ok || !data?.image) throw new Error(data?.error || `이미지를 만들지 못했습니다. (HTTP ${res.status})`)
+  return data.image as string
+}

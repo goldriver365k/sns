@@ -6,9 +6,12 @@ import { canShareImages, canvasToPng, downloadPng, downloadZip, saveToGallery } 
 import CardCanvas, { type CardCanvasHandle, type CardCheck } from './CardCanvas'
 import { todayKst } from '../lib/contents'
 import { btnGhost, btnPrimary } from './ui'
+import type { PickedImage } from '../lib/images'
 
 type Props = {
   cards: CardText[]
+  /** 입력 폼의 이미지 — 순서대로 카드 1·2·3에 들어간다 */
+  images: PickedImage[]
   /** 파일 이름에 쓰는 영문 이름 (압축 파일에서 한글 이름이 깨지지 않게) */
   fileKey: string
   brandName: string
@@ -20,7 +23,7 @@ type Props = {
 
 const bare = (url: string) => url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
 
-export default function InstagramCards({ cards, fileKey, brandName, siteUrl, defaultDesign, onChange, onMessage }: Props) {
+export default function InstagramCards({ cards, images, fileKey, brandName, siteUrl, defaultDesign, onChange, onMessage }: Props) {
   const [perCard, setPerCard] = useState(false)
   const [selected, setSelected] = useState(0)
   const [checks, setChecks] = useState<Record<number, CardCheck>>({})
@@ -30,8 +33,8 @@ export default function InstagramCards({ cards, fileKey, brandName, siteUrl, def
 
   const designOf = (i: number) => getDesign(cards[i]?.design ?? defaultDesign).id
   const inputs: CardInput[] = useMemo(
-    () => cards.map((c, i) => ({ title: c.title, body: c.body, emphasis: c.emphasis, index: i, total: cards.length, siteUrl: site, brandName })),
-    [cards, site, brandName],
+    () => cards.map((c, i) => ({ title: c.title, body: c.body, emphasis: c.emphasis, index: i, total: cards.length, siteUrl: site, brandName, image: images[i]?.el ?? null })),
+    [cards, site, brandName, images],
   )
 
   function chooseDesign(id: DesignId) {

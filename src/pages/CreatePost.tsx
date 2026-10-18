@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import PostResult, { finalText, type LangResult } from '../components/PostResult'
+import ImagePicker from '../components/ImagePicker'
+import type { PickedImage } from '../lib/images'
 import { IconPhone } from '../components/Icons'
 import BrandEditor from '../components/BrandEditor'
 import PlanEditor from '../components/PlanEditor'
@@ -50,6 +52,7 @@ export default function CreatePost() {
   const [content, setContent] = useState('')
   const [languages, setLanguages] = useState<Language[]>(['ko'])
   const [instructions, setInstructions] = useState('')
+  const [images, setImages] = useState<PickedImage[]>([])
   const [run, setRun] = useState<Run | null>(null)
   const [results, setResultsState] = useState<Record<string, LangResult>>({})
   const resultsRef = useRef<Record<string, LangResult>>({})
@@ -64,6 +67,8 @@ export default function CreatePost() {
 
   const profile = getSnsProfile(snsType)
   const brand = channels.find((c) => c.id === brandId)
+  // 음식 브랜드는 AI 이미지에서 실제 메뉴처럼 보이는 음식 사진을 만들지 않는다
+  const foodBrand = !!brand && /음식|메뉴|덮밥|맛집|식당|요리|불백|찹찹/.test(`${brand.name} ${brand.description}`)
   const plan = brand?.plans.find((p) => p.id === planId)
   const weeklyPlans = brand?.plans.filter((p) => p.period === 'weekly') ?? []
   const monthlyPlans = brand?.plans.filter((p) => p.period === 'monthly') ?? []
@@ -324,6 +329,16 @@ export default function CreatePost() {
             <div className="mt-1 text-right text-xs text-muted">{content.length}/{MAX_TEXT}</div>
           </div>
 
+          <ImagePicker
+            images={images}
+            onChange={setImages}
+            snsType={snsType}
+            brandName={brand?.name ?? ''}
+            foodBrand={foodBrand}
+            suggestion={content.trim() || plan?.topic || ''}
+            isInstagram={profile?.kind === 'cards'}
+          />
+
           <div>
             <span className={fieldLabel}>언어<Required /></span>
             <div className="flex flex-wrap gap-2">
@@ -377,6 +392,7 @@ export default function CreatePost() {
               languages={run.languages}
               results={results}
               fixedHashtags={run.fixedHashtags}
+              images={images}
               brand={{ name: run.brandName, siteUrl: run.siteUrl, defaultDesign: run.defaultDesign, fileKey: (run.channelId ?? '').replace(/[^a-zA-Z0-9-]/g, '') || 'card' }}
               approved={approved}
               saveState={saveState}

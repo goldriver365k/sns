@@ -6,6 +6,8 @@ import { LANGUAGES } from '../lib/options'
 import { copyText } from '../lib/clipboard'
 import { btnGhost, btnPrimary, inputBase } from './ui'
 import InstagramCards from './InstagramCards'
+import { copyImage, type PickedImage } from '../lib/images'
+import { canvasToPng, saveToGallery } from '../cards/export'
 
 /** 카드 하단 주소·파일 이름·기본 디자인에 쓰는 브랜드 정보 */
 export type CardBrand = { name: string; siteUrl: string; defaultDesign: string; fileKey: string }
@@ -22,6 +24,8 @@ type Props = {
   results: Record<string, LangResult>
   fixedHashtags: string[]
   brand: CardBrand
+  /** 입력 폼에서 넣은 이미지 (인스타그램은 카드에, 그 외 SNS는 결과 아래에 표시) */
+  images: PickedImage[]
   approved: boolean
   saveState: 'saving' | 'saved' | 'error' | null
   /** 생성이 끝나고 자동 복사를 시도한 결과 알림 */
@@ -115,6 +119,7 @@ export default function PostResult(props: Props) {
           post={r.post}
           fixedHashtags={fixedHashtags}
           brand={props.brand}
+          images={props.images}
           onChange={(p) => props.onEdit(active, p)}
           onCopy={copy}
           onMessage={showToast}
@@ -137,11 +142,12 @@ export default function PostResult(props: Props) {
   )
 }
 
-function PostEditor({ profile, post, fixedHashtags, brand, onChange, onCopy, onMessage }: {
+function PostEditor({ profile, post, fixedHashtags, brand, images, onChange, onCopy, onMessage }: {
   profile: SnsProfile
   post: GeneratedPost
   fixedHashtags: string[]
   brand: CardBrand
+  images: PickedImage[]
   onChange: (p: GeneratedPost) => void
   onCopy: (text: string) => void
   onMessage: (msg: string) => void
@@ -180,6 +186,7 @@ function PostEditor({ profile, post, fixedHashtags, brand, onChange, onCopy, onM
         <div className="space-y-4">
           <InstagramCards
             cards={post.cards}
+            images={images}
             fileKey={brand.fileKey}
             brandName={brand.name}
             siteUrl={brand.siteUrl}
@@ -219,6 +226,38 @@ function PostEditor({ profile, post, fixedHashtags, brand, onChange, onCopy, onM
         </div>
         <p className="mt-1 text-xs text-muted">[복사하기]를 누르면 해시태그까지 모두 복사됩니다. 진한 색은 고정 해시태그입니다.</p>
       </div>
+
+      {profile.kind !== 'cards' && images.length > 0 && <ImageStrip images={images} fileKey={brand.fileKey} onMessage={onMessage} />}
+    </div>
+  )
+}
+
+/** 글 게시물에 함께 올릴 이미지: 하나씩 복사하거나 갤러리에 저장 */
+function ImageStrip({ images, fileKey, onMessage }: { images: PickedImage[]; fileKey: string; onMessage: (m: string) => void }) {
+  async function save(img: PickedImage, i: number) {
+    const canvas = document.createElement('canvas')
+    canvas.width = img.width
+    canvas.height = img.height
+    canvas.getContext('2d')!.drawImage(img.el, 0, 0)
+    const r = await saveToGallery([{ name: `${fileKey}_image_${i + 1}.png`, blob: await canvasToPng(canvas) }])
+    onMessage(r === 'shared' ? '저장할 곳을 선택해 주세요' : r === 'downloaded' ? 'PNG로 내려받았습니다' : '취소되었습니다')
+  }
+  return (
+    <div>
+      <div className="mb-2 text-sm font-semibold text-forest-900">함께 올릴 이미지</div>
+      <ul className="grid grid-cols-3 gap-2">
+        {images.map((img, i) => (
+          <li key={img.id} className="overflow-hidden rounded-xl border border-cream-300 bg-cream-50">
+            <img src={img.url} alt={`이미지 ${i + 1}`} className="aspect-square w-full object-cover" />
+            <div className="flex justify-between px-2 py-1.5 text-xs">
+              <button type="button" onClick={async () => onMessage((await copyImage(img)) ? '이미지가 복사되었습니다' : '이 브라우저는 이미지 복사를 지원하지 않습니다. [저장]을 써 주세요.')} className="font-medium text-forest-500 hover:underline">
+                복사
+              </button>
+              <button type="button" onClick={() => save(img, i)} className="font-medium text-forest-500 hover:underline">저장</button>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

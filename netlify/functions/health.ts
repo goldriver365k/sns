@@ -15,6 +15,7 @@ export default async (req: Request) => {
   return json(200, {
     openaiKey: key ? (key.startsWith('sk-') ? '있음' : '있음(형식 확인 필요: 보통 sk-로 시작)') : '없음',
     openaiModel: process.env.OPENAI_MODEL || '없음',
+    imageModel: process.env.OPENAI_IMAGE_MODEL || '없음(AI 이미지 만들기 사용 불가)',
     reasoningEffort: process.env.OPENAI_REASONING_EFFORT || '설정 안 함',
     adminEmails: process.env.ADMIN_EMAILS ? '있음' : '없음(기본값 사용)',
   })

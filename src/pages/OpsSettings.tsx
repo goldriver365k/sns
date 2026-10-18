@@ -7,6 +7,7 @@ import { checkServer } from '../lib/api'
 const LABELS: Record<string, string> = {
   openaiKey: 'OpenAI API 키 (OPENAI_API_KEY)',
   openaiModel: '모델 이름 (OPENAI_MODEL)',
+  imageModel: '이미지 모델 (OPENAI_IMAGE_MODEL)',
   reasoningEffort: '추론 정도 (OPENAI_REASONING_EFFORT)',
   adminEmails: '관리자 이메일 (ADMIN_EMAILS)',
 }
