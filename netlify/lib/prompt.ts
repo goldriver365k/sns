@@ -51,6 +51,7 @@ export function buildMessages(req: GenerateRequest, profile: SnsProfile) {
     `결과 형태: ${profile.summary}`,
     `구성: ${profile.guide}`,
     `본문 최대 ${profile.maxChars}자.`,
+    ...(profile.maxLines ? [`본문(캡션)은 빈 줄 없이 반드시 ${profile.maxLines}줄 이내로 쓴다. 해시태그는 줄 수에 넣지 않는다.`] : []),
     '',
     '## 노출 핵심 (반드시 모두 반영)',
     ...profile.essentials.map((e) => `- ${e}`),
@@ -122,7 +123,26 @@ export function finalizePost(raw: GeneratedPost, req: GenerateRequest, profile: 
 
   const site = req.brand?.siteUrl ? bareDomain(req.brand.siteUrl) : ''
   if (profile.noLinks) body = body.replace(/https?:\/\//gi, '')
-  if (site && !body.toLowerCase().includes(site.toLowerCase())) body = `${body}\n\n${site}`
+  if (profile.maxLines) {
+    // 줄 수 제한(인스타그램 캡션 3줄): 빈 줄을 없애고, 주소 줄은 지키면서 넘치는 줄은 덜어낸다
+    let lines = body.split('\n').map((l) => l.trim()).filter(Boolean)
+    const hasSite = (l: string) => !!site && l.toLowerCase().includes(site.toLowerCase())
+    const siteLine = lines.find(hasSite) ?? (site || '')
+    if (siteLine) lines = lines.filter((l) => !hasSite(l))
+    const room = profile.maxLines - (siteLine ? 1 : 0)
+    if (lines.length > room) {
+      // 넘치면 첫 줄(훅)과 저장·공유 유도 줄을 먼저 남기고, 원래 순서를 지킨다
+      const keep = new Set<number>([0])
+      const cta = lines.findIndex((l, i) => i > 0 && /저장|공유|보내|save|share/i.test(l))
+      if (cta > 0) keep.add(cta)
+      for (let i = 1; keep.size < room && i < lines.length; i++) keep.add(i)
+      lines = lines.filter((_, i) => keep.has(i)).slice(0, room)
+    }
+    if (siteLine) lines.push(siteLine)
+    body = lines.join('\n')
+  } else if (site && !body.toLowerCase().includes(site.toLowerCase())) {
+    body = `${body}\n\n${site}`
+  }
 
   const fixed = new Set((req.brand?.hashtags ?? []).map((t) => t.toLowerCase()))
   tags = tags.filter((t) => !fixed.has(t.toLowerCase()))

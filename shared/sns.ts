@@ -52,9 +52,13 @@ export type SnsProfile = {
   checks: ReachCheck[]
   /** 본문에 https:// 링크를 넣으면 노출이 줄어드는 SNS (주소는 도메인 글자로만) */
   noLinks?: boolean
+  /** 본문(캡션) 최대 줄 수 — 빈 줄 없이 이 줄 수 안에서 쓴다(사이트 주소 줄 포함, 해시태그 줄 제외) */
+  maxLines?: number
 }
 
 // ── 검사 도우미 ──────────────────────────────────────────
+/** 내용이 있는 줄 수 (빈 줄 제외) */
+export const countLines = (t: string) => t.split('\n').filter((l) => l.trim()).length
 const firstLine = (t: string) => t.trim().split('\n')[0] ?? ''
 const hasKeyword = (text: string, kw?: string) => !kw || text.toLowerCase().includes(kw.toLowerCase())
 const countOf = (text: string, kw?: string) => (kw ? text.toLowerCase().split(kw.toLowerCase()).length - 1 : 0)
@@ -69,18 +73,21 @@ export const SNS_PROFILES = [
     value: 'instagram',
     label: '인스타그램',
     kind: 'cards',
-    summary: '카드 이미지 3장(1080×1350) + 캡션',
+    summary: '카드 이미지 3장(1080×1350) + 3줄 캡션',
     maxChars: 2200,
+    maxLines: 3,
     hashtags: [3, 5],
     guide:
-      '카드 3장: 1장 관심을 끄는 제목, 2장 핵심 내용 또는 공감 메시지, 3장 결론 또는 브랜드 연결. 카드 글씨는 짧게. 캡션은 첫 줄에 핵심을 담고 줄바꿈으로 읽기 쉽게, 마지막에 행동 유도 한 줄.',
+      '카드 3장: 1장 관심을 끄는 제목, 2장 핵심 내용 또는 공감 메시지, 3장 결론 또는 브랜드 연결. 카드 글씨는 짧게. 캡션은 빈 줄 없이 딱 3줄 이내: 1줄 핵심 키워드가 들어간 훅, 2줄 저장·공유를 부르는 한 문장, 3줄 사이트 주소(브랜드에 주소가 있을 때, 없으면 행동 유도). 자세한 내용은 카드에 담고 캡션은 짧게.',
     essentials: [
-      '캡션 첫 줄(더보기 전 약 125자)에 핵심 키워드와 훅 — 인스타그램 검색은 해시태그보다 캡션 키워드를 더 본다',
+      '캡션은 3줄 이내(빈 줄 없이) — 짧을수록 끝까지 읽히고, 자세한 내용은 카드에 담는다',
+      '캡션 첫 줄에 핵심 키워드와 훅 — 인스타그램 검색은 해시태그보다 캡션 키워드를 더 본다',
       '저장·공유를 부르는 문장(예: "나중에 보려면 저장", "친구에게 보내기") — 저장·공유·DM 전송이 추천 노출의 핵심 신호',
       '주제에 딱 맞는 해시태그 3~5개 (게시물당 최대 5개 제한)',
       '카드 1장째에 한눈에 읽히는 큰 제목 — 첫 장에서 넘겨 보게 만들어야 체류 시간이 늘어난다',
     ],
     checks: [
+      { label: '캡션 3줄 이내', test: (r) => countLines(r.body) <= 3 },
       { label: '첫 줄에 핵심 키워드', test: (r) => hasKeyword(firstLine(r.body), r.keyword) },
       { label: '저장·공유 유도 문장', test: (r) => /저장|공유|보내|태그/.test(r.body) },
       { label: '해시태그 3~5개', test: (r) => tagCount(r, 3, 5) },

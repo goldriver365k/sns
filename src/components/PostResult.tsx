@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { CardText, GeneratedPost } from '../../shared/generate'
-import { checkReach, countChars, type SnsProfile } from '../../shared/sns'
+import { checkReach, countChars, countLines, type SnsProfile } from '../../shared/sns'
 import { composeCopyText, pickHashtags } from '../../shared/hashtags'
 import { LANGUAGES } from '../lib/options'
 import { copyText } from '../lib/clipboard'
@@ -160,6 +160,8 @@ function PostEditor({ profile, post, fixedHashtags, brand, images, onImagesChang
   const tags = pickHashtags(post.body, post.hashtags, fixedHashtags, profile.hashtags[1])
   const fixedSet = new Set(fixedHashtags.map((t) => t.toLowerCase()))
   const chars = countChars(profile.value, text)
+  const lines = countLines(post.body)
+  const overLines = !!profile.maxLines && lines > profile.maxLines
   const over = chars > profile.maxChars
   const checks = checkReach(profile.value, { title: post.title, body: post.body, hashtags: tags, keyword: post.keyword })
   const set = (patch: Partial<GeneratedPost>) => onChange({ ...post, ...patch })
@@ -225,8 +227,11 @@ function PostEditor({ profile, post, fixedHashtags, brand, images, onImagesChang
               </span>
             ))}
           </div>
-          <span className={`text-xs ${over ? 'font-semibold text-red-700' : 'text-muted'}`}>
-            {chars} / {profile.maxChars}자{profile.value === 'x' && ' (한글 기준)'}{over && ' — 제한 초과'}
+          <span className={`text-xs ${over || overLines ? 'font-semibold text-red-700' : 'text-muted'}`}>
+            {profile.maxLines && `${lines} / ${profile.maxLines}줄 · `}
+            {chars} / {profile.maxChars}자{profile.value === 'x' && ' (한글 기준)'}
+            {overLines && ' — 줄 수 초과'}
+            {over && ' — 제한 초과'}
           </span>
         </div>
         <p className="mt-1 text-xs text-muted">[복사하기]를 누르면 해시태그까지 모두 복사됩니다. 진한 색은 고정 해시태그입니다.</p>
