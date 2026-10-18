@@ -22,6 +22,8 @@ export type Channel = {
   description: string
   /** 생성 시 항상 적용할 규칙 */
   rules: string
+  /** 고정 해시태그. [복사하기]를 누르면 항상 글 끝에 붙는다. */
+  hashtags: string[]
   plans: PlanItem[]
   order: number
 }
@@ -47,6 +49,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'bulbaek',
     name: '화산불백',
+    hashtags: ['#화산불백', '#불백', '#직화불백덮밥'],
     sns: 'instagram',
     siteUrl: 'bulbaek.com',
     description: '직화불백덮밥전문점. 슬로건: 불로 굽고, 밥으로 완성하다',
@@ -66,6 +69,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'hurururuk',
     name: '후루룩찹찹',
+    hashtags: ['#후루룩찹찹'],
     sns: 'instagram',
     siteUrl: '',
     description: '대학생의 관심과 공감을 얻는 브랜드. 음식 홍보만 반복하지 않고 저장·공유하고 싶은 콘텐츠를 만든다.',
@@ -84,6 +88,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'haengbok',
     name: '행복대운',
+    hashtags: ['#행복대운', '#행운주문'],
     sns: 'threads',
     siteUrl: 'wishanddo.life',
     description: '매일 새로운 행운·복·대박 주문을 주는 긍정 메시지 채널',
@@ -94,6 +99,7 @@ export const DEFAULT_CHANNELS: Channel[] = [
   {
     id: 'hellokorean',
     name: 'Hello Korean',
+    hashtags: ['#HelloKorean', '#LearnKorean'],
     sns: 'threads',
     siteUrl: 'hellokorean.site',
     description: '무료 한글 학습 사이트 Hello Korean 홍보',
@@ -133,7 +139,11 @@ export function useChannels() {
             return
           }
         }
-        const list = snap.docs.map((d) => ({ ...(d.data() as Omit<Channel, 'id'>), id: d.id }))
+        // 예전에 저장된 문서에 없는 항목은 빈 값으로 채운다.
+        const list = snap.docs.map((d) => {
+          const data = d.data() as Partial<Channel>
+          return { ...data, hashtags: data.hashtags ?? [], plans: data.plans ?? [], id: d.id } as Channel
+        })
         setChannels(list.sort((a, b) => a.order - b.order))
       },
       () => setError('브랜드 목록을 불러오지 못했습니다. 기본값을 보여주며, 변경 내용은 저장되지 않을 수 있습니다.'),

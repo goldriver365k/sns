@@ -1,10 +1,7 @@
 // 입력 폼에서 쓰는 선택지 정의
 
-export const SNS_TYPES = [
-  { value: 'instagram', label: '인스타그램' },
-  { value: 'threads', label: '스레드' },
-] as const
-export type SnsType = (typeof SNS_TYPES)[number]['value']
+// SNS 종류는 화면과 서버가 함께 쓰는 shared/sns.ts에 정의되어 있다.
+export { SNS_PROFILES as SNS_TYPES, getSnsProfile, type SnsType } from '../../shared/sns'
 
 export const LANGUAGES = [
   { value: 'ko', label: '한국어' },

@@ -4,7 +4,7 @@ import { IconPhone } from '../components/Icons'
 import BrandEditor from '../components/BrandEditor'
 import PlanEditor from '../components/PlanEditor'
 import { btnLink, fieldLabel, inputBase } from '../components/ui'
-import { LANGUAGES, MAX_TEXT, SNS_TYPES, type Language, type SnsType } from '../lib/options'
+import { getSnsProfile, LANGUAGES, MAX_TEXT, SNS_TYPES, type Language, type SnsType } from '../lib/options'
 import { newId, todayWeekday, useChannels, type Channel } from '../lib/channels'
 
 function Required() {
@@ -23,6 +23,7 @@ export default function CreatePost() {
   const [instructions, setInstructions] = useState('')
   const [notice, setNotice] = useState<string | null>(null)
 
+  const profile = getSnsProfile(snsType)
   const brand = channels.find((c) => c.id === brandId)
   const plan = brand?.plans.find((p) => p.id === planId)
   const weeklyPlans = brand?.plans.filter((p) => p.period === 'weekly') ?? []
@@ -81,6 +82,7 @@ export default function CreatePost() {
               <option value="" disabled>선택해 주세요</option>
               {SNS_TYPES.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
+            {profile && <p className="mt-1 text-xs text-muted">결과: {profile.summary}</p>}
           </div>
 
           <div>
@@ -96,6 +98,9 @@ export default function CreatePost() {
               {channels.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             {brand?.siteUrl && <p className="mt-1 text-xs text-muted">게시물에 {brand.siteUrl} 주소가 들어갑니다.</p>}
+            {brand && brand.hashtags.length > 0 && (
+              <p className="mt-1 text-xs text-muted">복사할 때 항상 붙는 해시태그: <span className="text-forest-700">{brand.hashtags.join(' ')}</span></p>
+            )}
             {channelError && <p className="mt-1 text-xs text-red-700">{channelError}</p>}
           </div>
 
@@ -196,7 +201,7 @@ export default function CreatePost() {
       )}
       {editing === 'newBrand' && (
         <BrandEditor
-          initial={{ id: newId(), name: '', sns: snsType, siteUrl: '', description: '', rules: '', plans: [], order: Math.max(-1, ...channels.map((c) => c.order)) + 1 }}
+          initial={{ id: newId(), name: '', sns: snsType, siteUrl: '', description: '', rules: '', hashtags: [], plans: [], order: Math.max(-1, ...channels.map((c) => c.order)) + 1 }}
           isNew
           onSave={handleSaveBrand}
           onClose={() => setEditing(null)}
