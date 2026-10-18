@@ -15,7 +15,7 @@
 
 ## 사용자 확인이 필요한 항목
 - [x] Firebase 프로젝트(snsroom) 웹 앱 설정값 — 코드에 반영
-- [ ] Firebase: Google 로그인 사용 설정, Firestore 생성 + 보안 규칙 게시 (docs/SETUP.md 1-2, 1-3)
+- [x] Firebase: Google 로그인 사용 설정, Firestore 생성 + 보안 규칙 게시 (확인 완료: 비로그인 접근 차단됨)
 - [ ] 새 Netlify 사이트 연결 (docs/SETUP.md 2번)
 - [ ] OpenAI API 키와 사용할 모델 이름 (3단계 전)
 - [x] 행운·복·대박 주문 채널: 원고에 wishanddo.life 포함 (SPEC 5-4) — 그 밖의 규칙이 있으면 추가
