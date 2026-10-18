@@ -37,7 +37,7 @@
 1. https://app.netlify.com → **Add new site → Import an existing project → GitHub**
 2. 저장소 `goldriver365k/sns` 선택 (기존 사이트를 선택하지 말고 새 사이트로 만듭니다)
 3. 빌드 설정은 저장소의 `netlify.toml`이 자동 적용됩니다. (명령 `npm run build`, 게시 폴더 `dist`)
-4. 배포할 브랜치: 지금은 작업 브랜치 `claude/ai-content-manager-firebase-y1cwys`, 나중에 `main`으로 합칩니다.
+4. 배포할 브랜치: **`main`** (운영). 작업은 `claude/ai-content-manager-firebase-y1cwys` 브랜치에서 하고, 확인이 끝나면 `main`에 합쳐 배포합니다.
 
 ### 2-1. 환경변수 입력
 **Site configuration → Environment variables → Add a variable**
