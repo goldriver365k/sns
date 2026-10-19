@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import PageHeader from '../components/PageHeader'
 import PostResult, { finalText, type LangResult } from '../components/PostResult'
 import ImagePicker from '../components/ImagePicker'
-import type { PickedImage } from '../lib/images'
+import { useStoredImages } from '../lib/imageStore'
 import { IconPhone } from '../components/Icons'
 import BrandEditor from '../components/BrandEditor'
 import PlanEditor from '../components/PlanEditor'
@@ -52,7 +52,13 @@ export default function CreatePost() {
   const [content, setContent] = useState('')
   const [languages, setLanguages] = useState<Language[]>(['ko'])
   const [instructions, setInstructions] = useState('')
-  const [images, setImages] = useState<PickedImage[]>([])
+  // 사진은 넣는 즉시 저장소에 올리고, 이미 저장된 결과가 있으면 사진 목록도 함께 기록한다(다른 기기에서 보이도록)
+  const imageIdsRef = useRef<string[]>([])
+  const runRef = useRef<Run | null>(null)
+  const { images, setImages, error: imageError } = useStoredImages(null, (ids) => {
+    imageIdsRef.current = ids
+    if (runRef.current && savedRef.current) updateContent(runRef.current.id, { imageIds: ids }).catch(() => setSaveState('error'))
+  })
   const [run, setRun] = useState<Run | null>(null)
   const [results, setResultsState] = useState<Record<string, LangResult>>({})
   const resultsRef = useRef<Record<string, LangResult>>({})
@@ -134,6 +140,7 @@ export default function CreatePost() {
           fixedHashtags: r.fixedHashtags,
           input: { content: r.request.content, instructions: r.request.instructions, languages: r.languages },
           posts,
+          imageIds: imageIdsRef.current,
         })
         savedRef.current = true
       } else {
@@ -170,6 +177,7 @@ export default function CreatePost() {
 
   async function startRun(r: Run) {
     setRun(r)
+    runRef.current = r
     setApproved(false)
     setAutoCopyNotice(null)
     resultsRef.current = {}
@@ -338,6 +346,7 @@ export default function CreatePost() {
             suggestion={content.trim() || plan?.topic || ''}
             isInstagram={profile?.kind === 'cards'}
           />
+          {imageError && <p className="-mt-4 text-sm text-red-700">{imageError}</p>}
 
           <div>
             <span className={fieldLabel}>언어<Required /></span>

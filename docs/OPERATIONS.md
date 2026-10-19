@@ -63,4 +63,4 @@
 | --- | --- |
 | 매일 05:00 자동 생성 + 오늘의 콘텐츠 자동 결과 + 뉴스 API | 6·7·9단계 진행. `FIREBASE_SERVICE_ACCOUNT`, 뉴스 API 키 필요 |
 | AI 이미지 만들기 | `src/components/ImagePicker.tsx`의 `AI_IMAGE_ENABLED = true` + `OPENAI_IMAGE_MODEL` 설정 |
-| 이미지 보관함(사진 저장) | Firebase Storage 켜기(Blaze 요금제 필요할 수 있음) → `storage.rules` 게시 → 8단계 4번 진행 |
+| 이미지 보관함 화면 | 사진은 이미 Firestore `images`에 저장되고 있음(PC↔휴대폰 공유). 보관함 목록 화면만 만들면 됨. 원본 해상도가 필요하면 Firebase Storage로 이전 |

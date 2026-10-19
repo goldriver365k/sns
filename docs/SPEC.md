@@ -400,11 +400,14 @@ PC와 모바일 모두 대응한다.
   - 인스타: `cards[3]`(제목, 본문, 강조 문구, 디자인, 폰트·색상·위치, 이미지 경로), `caption`, `hashtags`
   - 스레드 등 글 결과: `posts[]`(언어, 본문, 글자 수)
   - `references[]`(출처, 발행일, URL), `topic`, `createdAt`, `updatedAt`
-  - (구현) 수동 생성 문서 필드: `date`(KST yyyy-mm-dd), `channelId`, `brandName`, `snsType`, `source: 'manual'`, `status`, `topic`, `fixedHashtags[]`, `input{content, instructions, languages[]}`, `posts[]{language, keyword, title, body, hashtags[], cards[]}`, `createdAt`, `updatedAt`
+  - (구현) 수동 생성 문서 필드: `imageIds[]`, `date`(KST yyyy-mm-dd), `channelId`, `brandName`, `snsType`, `source: 'manual'`, `status`, `topic`, `fixedHashtags[]`, `input{content, instructions, languages[]}`, `posts[]{language, keyword, title, body, hashtags[], cards[]}`, `createdAt`, `updatedAt`
   - (구현) `posts[].hashtags`는 생성 해시태그만 저장하고, 고정 해시태그는 `fixedHashtags`에 따로 둔다. 복사할 때 `composeCopyText()`로 합친다.
 - `topicHistory/{id}` — 채널별 다룬 주제 이력(중복 방지)
 - `jobs/{jobId}` — 자동 생성 작업 상태와 오류 기록
-- `images/{imageId}` — 이미지 보관함(원본 경로, 업로드 날짜, 태그)
+- `images/{imageId}` — 사진 저장소(구현): `data`(JPEG data URL, 긴 변 1600px, 900KB 이하로 품질 자동 조정), `width`, `height`, `source`, `createdAt`
+  - Firebase Storage(유료 요금제 필요할 수 있음) 대신 Firestore에 저장해, PC에서 넣은 사진을 휴대폰에서도 본다(사용자 문제 제기: PC에서 만든 카드를 휴대폰에서 열면 사진이 없음).
+  - 사진은 넣는 즉시 저장된다(입력 폼·카드 편집기 모두). 콘텐츠 문서의 `imageIds[]`에 순서를 기록하고, 카드별 선택은 `cards[].imageId`.
+  - 지난 콘텐츠·오늘의 콘텐츠에서 항목을 펼칠 때 사진을 불러온다. 원본 해상도 보관이나 대용량이 필요해지면 Storage로 옮긴다.
 - `settings/app` — 생성 시간, 관리자 이메일 등
 
 ---

@@ -27,6 +27,8 @@ export type NewContent = {
   fixedHashtags: string[]
   input: { content: string; instructions: string; languages: string[] }
   posts: StoredPost[]
+  /** 함께 쓴 사진 id 순서 (사진은 images 컬렉션에 저장) */
+  imageIds: string[]
 }
 
 /** 한국시간 기준 오늘 날짜 (yyyy-mm-dd) */
@@ -52,7 +54,7 @@ export async function saveContent(id: string, c: NewContent) {
   })
 }
 
-export async function updateContent(id: string, patch: { posts?: StoredPost[]; status?: 'draft' | 'approved' | 'archived' }) {
+export async function updateContent(id: string, patch: { posts?: StoredPost[]; status?: 'draft' | 'approved' | 'archived'; imageIds?: string[] }) {
   if (!db) throw new Error('저장소에 연결되지 않았습니다.')
   await updateDoc(doc(db, 'contents', id), { ...patch, updatedAt: serverTimestamp() })
 }
@@ -80,6 +82,7 @@ function toContent(d: QueryDocumentSnapshot): StoredContent {
     fixedHashtags: x.fixedHashtags ?? [],
     input: x.input ?? { content: '', instructions: '', languages: [] },
     posts: x.posts ?? [],
+    imageIds: x.imageIds ?? [],
     createdAtMs: x.createdAt?.toMillis?.() ?? 0,
   }
 }
