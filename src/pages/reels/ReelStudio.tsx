@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ReelPreview from '../../components/reels/ReelPreview'
 import Timeline from '../../components/reels/Timeline'
 import SceneInspector from '../../components/reels/SceneInspector'
@@ -6,6 +6,7 @@ import AssetPanel from '../../components/reels/AssetPanel'
 import ExportPanel from '../../components/reels/ExportPanel'
 import { blankScene, newSceneId, updateProject, useReelProject } from '../../reels/store'
 import { useReelPlayer } from '../../reels/player'
+import { useSaveStatus } from '../../reels/persist'
 import { maxScenesFor, splitScript } from '../../reels/storyboard'
 import { REEL_TEMPLATES } from '../../reels/templates'
 import type { ReelDuration, ReelScene } from '../../reels/types'
@@ -23,6 +24,20 @@ export default function ReelStudio() {
   const [notice, setNotice] = useState<string | null>(null)
   const scene = p.scenes.find((s) => s.id === selected) ?? p.scenes[0]
   const media = p.assets.filter((a) => a.kind === 'media')
+  const { loading } = useSaveStatus()
+
+  // 다른 프로젝트를 열거나 새로 시작하면 처음 장면부터 (처음 저장되며 id가 생길 때는 그대로)
+  const prevId = useRef(p.id)
+  useEffect(() => {
+    const prev = prevId.current
+    prevId.current = p.id
+    if (prev === p.id || (prev === null && p.id !== null && !loading)) return
+    setSelected(p.scenes[0]?.id ?? null)
+    setNotice(null)
+    player.setRange(null)
+    player.seek(0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.id])
 
   function patchScene(id: string, patch: Partial<ReelScene>) {
     updateProject((cur) => ({ scenes: cur.scenes.map((s) => (s.id === id ? { ...s, ...patch } : s)) }))
@@ -125,8 +140,11 @@ export default function ReelStudio() {
 
         {/* 가운데: 미리보기 */}
         <section className="order-1 flex flex-col items-center lg:order-2">
-          <div className="w-full max-w-[260px] sm:max-w-[380px]">
+          <div className="relative w-full max-w-[260px] sm:max-w-[380px]">
             <ReelPreview project={p} player={player} />
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 text-sm font-medium text-white">프로젝트를 불러오는 중…</div>
+            )}
           </div>
         </section>
 
@@ -161,7 +179,6 @@ export default function ReelStudio() {
               <li>배경음악·음량·나레이션 중 자동 감소</li>
               <li>목소리와 맞춘 자동 자막</li>
               <li>장면 AI 재생성</li>
-              <li>프로젝트 자동 저장·다시 편집</li>
             </ul>
           </section>
         </aside>

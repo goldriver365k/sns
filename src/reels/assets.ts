@@ -1,5 +1,5 @@
 import { newSceneId } from './store'
-import type { AssetKind, ReelAsset } from './types'
+import type { AssetKind, ReelAsset, ReelAssetMeta } from './types'
 
 const MAX_VIDEO_MB = 300
 const MAX_VIDEO_SEC = 180
@@ -43,6 +43,41 @@ async function loadImageFile(file: File) {
   }
 }
 
+function openVideo(url: string) {
+  const video = document.createElement('video')
+  video.muted = true
+  video.playsInline = true
+  video.preload = 'auto'
+  video.loop = true
+  video.src = url
+  return new Promise<HTMLVideoElement>((resolve, reject) => {
+    video.onloadeddata = () => resolve(video)
+    video.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('이 브라우저에서 열 수 없는 영상입니다. 크롬·엣지·사파리 최신 버전을 쓰거나, MP4(H.264) 또는 WebM 파일로 바꿔 넣어 주세요.'))
+    }
+  })
+}
+
+/** 저장해 둔 파일로 자료를 되살린다 (다시 압축하지 않음) */
+export async function restoreAsset(meta: ReelAssetMeta, blob: Blob): Promise<ReelAsset> {
+  const url = URL.createObjectURL(blob)
+  if (meta.type === 'video') {
+    const el = await openVideo(url)
+    return { ...meta, url, el, width: el.videoWidth || meta.width, height: el.videoHeight || meta.height, duration: el.duration || meta.duration }
+  }
+  const el = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('사진을 읽지 못했습니다.'))
+    }
+    img.src = url
+  })
+  return { ...meta, url, el, width: el.naturalWidth || meta.width, height: el.naturalHeight || meta.height }
+}
+
 /** 업로드·붙여넣기한 파일을 릴스 자료로 만든다. 사진은 긴 변 2160px로 줄이고(투명 배경 유지), 영상은 그대로 쓴다. */
 export async function loadAsset(file: File, kind: AssetKind): Promise<ReelAsset> {
   if (file.type.startsWith('image/')) {
@@ -53,17 +88,7 @@ export async function loadAsset(file: File, kind: AssetKind): Promise<ReelAsset>
     if (kind !== 'media') throw new Error('로고와 캐릭터는 이미지 파일만 넣을 수 있습니다.')
     if (file.size > MAX_VIDEO_MB * 1024 * 1024) throw new Error(`영상은 ${MAX_VIDEO_MB}MB까지 넣을 수 있습니다.`)
     const url = URL.createObjectURL(file)
-    const video = document.createElement('video')
-    video.muted = true
-    video.playsInline = true
-    video.preload = 'auto'
-    video.loop = true
-    video.src = url
-    await new Promise<void>((resolve, reject) => {
-      video.onloadeddata = () => resolve()
-      video.onerror = () =>
-        reject(new Error('이 브라우저에서 열 수 없는 영상입니다. 크롬·엣지·사파리 최신 버전을 쓰거나, MP4(H.264) 또는 WebM 파일로 바꿔 넣어 주세요.'))
-    })
+    const video = await openVideo(url)
     if (video.duration > MAX_VIDEO_SEC) {
       URL.revokeObjectURL(url)
       throw new Error(`영상은 ${MAX_VIDEO_SEC / 60}분 이하만 넣을 수 있습니다.`)

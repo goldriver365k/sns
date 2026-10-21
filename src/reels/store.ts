@@ -2,8 +2,8 @@ import { useSyncExternalStore } from 'react'
 import type { ReelDuration, ReelProject, ReelScene } from './types'
 
 /**
- * 릴스 프로젝트 상태 (메뉴 탭을 옮겨 다녀도 유지).
- * 지금은 이 브라우저 안에서만 유지되며 새로고침하면 사라진다 — 프로젝트 저장은 다음 단계.
+ * 지금 편집 중인 릴스 프로젝트 상태 (메뉴 탭을 옮겨 다녀도 유지).
+ * 저장·불러오기는 persist.ts가 맡는다.
  */
 export const newSceneId = () => Math.random().toString(36).slice(2, 10)
 
@@ -11,19 +11,23 @@ export function blankScene(text = ''): ReelScene {
   return { id: newSceneId(), text, weight: 1, assetId: null, characterId: null, motion: 'zoomIn', subtitleAnim: 'pop', effects: [], priceText: '', ctaText: '' }
 }
 
-const initial: ReelProject = {
+export const FIRST_HINT = '주제를 입력하거나 대본을 붙여넣고\n[장면 나누기]를 눌러 보세요'
+
+export const freshProject = (): ReelProject => ({
+  id: null,
   title: '새 릴스',
   topic: '',
   script: '',
   duration: 15 as ReelDuration,
   template: 'clean',
-  scenes: [blankScene('주제를 입력하거나 대본을 붙여넣고\n[장면 나누기]를 눌러 보세요')],
+  scenes: [blankScene(FIRST_HINT)],
   assets: [],
   logoId: null,
   showProgress: true,
-}
+  missing: [],
+})
 
-let state: ReelProject = initial
+let state: ReelProject = freshProject()
 const listeners = new Set<() => void>()
 
 export function getProject() {
@@ -35,14 +39,21 @@ export function updateProject(patch: Partial<ReelProject> | ((p: ReelProject) =>
   listeners.forEach((l) => l())
 }
 
+/** 프로젝트를 통째로 바꾼다 (불러오기·새 프로젝트) */
+export function replaceProject(next: ReelProject) {
+  state = next
+  listeners.forEach((l) => l())
+}
+
+export function subscribeProject(l: () => void) {
+  listeners.add(l)
+  return () => {
+    listeners.delete(l)
+  }
+}
+
 export function useReelProject() {
-  return useSyncExternalStore(
-    (l) => {
-      listeners.add(l)
-      return () => listeners.delete(l)
-    },
-    () => state,
-  )
+  return useSyncExternalStore(subscribeProject, () => state)
 }
 
 /** 장면별 실제 시작·길이(초) — 비율(weight)을 전체 길이에 맞춰 나눈다 */

@@ -409,6 +409,11 @@ PC와 모바일 모두 대응한다.
   - 사진은 넣는 즉시 저장된다(입력 폼·카드 편집기 모두). 콘텐츠 문서의 `imageIds[]`에 순서를 기록하고, 카드별 선택은 `cards[].imageId`.
   - 지난 콘텐츠·오늘의 콘텐츠에서 항목을 펼칠 때 사진을 불러온다. 원본 해상도 보관이나 대용량이 필요해지면 Storage로 옮긴다.
 - `settings/app` — 생성 시간, 관리자 이메일 등
+- `reelProjects/{id}` — AI 자동 릴스 프로젝트(구현, 상세: docs/REELS.md)
+  - `title`, `topic`, `script`, `duration`(10|15|30|60), `template`, `scenes[]`, `logoId`, `showProgress`, `thumbnail`(목록용 216×384 JPEG data URL), `createdAt`, `updatedAt`
+  - `assets[]` — 자료 정보만: `{ id, kind(media|logo|character), type(image|video), name, width, height, duration?, keyModel?, cloud? }`
+  - 자료 파일: 이 기기 브라우저 저장소(IndexedDB `snsroom-reels`/`files`, 키 = 자료 id)에 원본. 사진·로고·캐릭터는 `images/{자료 id}`에도 저장(`source: 'reel'`, 투명 배경 PNG는 PNG로 크기만 줄임) → `cloud: true`. 영상은 이 기기에만 저장(사용자 결정: 무료 방식).
+  - 편집 내용은 1.2초 멈추면 자동 저장. 마지막으로 연 프로젝트는 다음에 릴스 화면에 들어오면 다시 열린다(localStorage `snsroom.reels.lastProject`).
 
 ---
 

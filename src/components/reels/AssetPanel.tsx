@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { loadAsset, releaseAsset } from '../../reels/assets'
-import type { AssetKind, ReelAsset, ReelProject } from '../../reels/types'
+import { forgetAssetFiles } from '../../reels/persist'
+import { updateProject } from '../../reels/store'
+import type { AssetKind, ReelAsset, ReelAssetMeta, ReelProject } from '../../reels/types'
 
 type Props = {
   project: ReelProject
@@ -17,6 +19,8 @@ export default function AssetPanel({ project, onAdd, onChange }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [drag, setDrag] = useState(false)
+  const reattachInput = useRef<HTMLInputElement>(null)
+  const [reattaching, setReattaching] = useState<ReelAssetMeta | null>(null)
   const countRef = useRef(project.assets.length)
   countRef.current = project.assets.length
 
@@ -52,8 +56,24 @@ export default function AssetPanel({ project, onAdd, onChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /** 이 기기에 없는 자료(다른 기기에서 넣은 영상 등)를 같은 자리에 다시 넣는다 — 장면 연결은 그대로 */
+  async function reattach(meta: ReelAssetMeta, file: File) {
+    setError(null)
+    setBusy(true)
+    try {
+      const loaded = await loadAsset(file, meta.kind)
+      const asset: ReelAsset = { ...loaded, id: meta.id, keyModel: meta.keyModel }
+      updateProject((cur) => ({ assets: [...cur.assets, asset], missing: cur.missing.filter((m) => m.id !== meta.id) }))
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '파일을 넣지 못했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   function remove(a: ReelAsset) {
     releaseAsset(a)
+    forgetAssetFiles(a.id)
     onChange({
       assets: project.assets.filter((x) => x.id !== a.id),
       logoId: project.logoId === a.id ? null : project.logoId,
@@ -106,6 +126,44 @@ export default function AssetPanel({ project, onAdd, onChange }: Props) {
       </div>
       {error && <p className="mt-1 text-xs text-red-700">{error}</p>}
 
+      {project.missing.length > 0 && (
+        <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-2.5 text-xs">
+          <p className="font-semibold text-amber-900">이 기기에 없는 자료 {project.missing.length}개</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-amber-900/80">영상은 넣은 기기에만 저장됩니다. 같은 파일을 다시 넣으면 원래 장면에 그대로 들어갑니다.</p>
+          <ul className="mt-1.5 space-y-1">
+            {project.missing.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-2">
+                <span className="truncate">
+                  {m.type === 'video' ? '영상' : KIND_LABEL[m.kind]} · {m.name}
+                </span>
+                <button
+                  onClick={() => {
+                    setReattaching(m)
+                    reattachInput.current?.click()
+                  }}
+                  disabled={busy}
+                  className="shrink-0 rounded-md border border-amber-400 bg-white px-2 py-0.5 font-medium text-amber-900"
+                >
+                  다시 넣기
+                </button>
+              </li>
+            ))}
+          </ul>
+          <input
+            ref={reattachInput}
+            type="file"
+            hidden
+            accept={reattaching?.type === 'video' ? 'video/*' : 'image/*'}
+            aria-label="다시 넣을 파일"
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f && reattaching) reattach(reattaching, f)
+              e.target.value = ''
+            }}
+          />
+        </div>
+      )}
+
       {project.assets.length > 0 && (
         <ul className="mt-2 grid grid-cols-3 gap-1.5">
           {project.assets.map((a) => (
@@ -135,7 +193,7 @@ export default function AssetPanel({ project, onAdd, onChange }: Props) {
           ))}
         </ul>
       )}
-      <p className="mt-2 text-[11px] leading-snug text-muted">★ 핵심 모델로 지정한 사진은 자르거나 크게 확대하지 않고 원본 그대로 보여 줍니다. 자료는 지금 이 브라우저에서만 쓰이며 새로고침하면 사라집니다(프로젝트 저장은 다음 단계).</p>
+      <p className="mt-2 text-[11px] leading-snug text-muted">★ 핵심 모델로 지정한 사진은 자르거나 크게 확대하지 않고 원본 그대로 보여 줍니다. 자료는 자동 저장됩니다: 사진·로고·캐릭터는 다른 기기에서도 보이고, 영상은 이 기기에만 저장됩니다.</p>
     </div>
   )
 }

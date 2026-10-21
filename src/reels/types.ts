@@ -2,7 +2,7 @@
 
 export type AssetKind = 'media' | 'logo' | 'character'
 
-/** 업로드한 사진·영상·로고·캐릭터 (지금은 이 브라우저 안에서만 사용) */
+/** 업로드한 사진·영상·로고·캐릭터 (파일은 이 기기 브라우저 저장소에, 사진은 Firestore에도 저장) */
 export type ReelAsset = {
   id: string
   kind: AssetKind
@@ -16,6 +16,8 @@ export type ReelAsset = {
   duration?: number
   /** 핵심 모델 이미지: 자르거나 크게 확대하지 않고 원본 비율 그대로 보여 준다 */
   keyModel?: boolean
+  /** 다른 기기용 사진 저장(Firestore)까지 끝났는지 */
+  cloud?: boolean
 }
 
 export type MotionId = 'none' | 'zoomIn' | 'zoomOut' | 'panLeft' | 'panRight'
@@ -40,7 +42,12 @@ export type ReelScene = {
 export type ReelDuration = 10 | 15 | 30 | 60
 export type TemplateId = 'clean' | 'impact' | 'premium' | 'pop' | 'info'
 
+/** 저장용 자료 정보 (파일 자체는 따로 저장) */
+export type ReelAssetMeta = Pick<ReelAsset, 'id' | 'kind' | 'type' | 'name' | 'width' | 'height' | 'duration' | 'keyModel' | 'cloud'>
+
 export type ReelProject = {
+  /** 저장된 프로젝트 id — 아직 저장 전이면 null */
+  id: string | null
   title: string
   topic: string
   script: string
@@ -50,4 +57,6 @@ export type ReelProject = {
   assets: ReelAsset[]
   logoId: string | null
   showProgress: boolean
+  /** 이 기기에서 파일을 찾지 못한 자료(주로 다른 기기에서 넣은 영상) — [다시 넣기]로 채운다 */
+  missing: ReelAssetMeta[]
 }
