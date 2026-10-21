@@ -4,6 +4,7 @@
 - 설정·배포 안내: `docs/SETUP.md`
 - 진행 현황: `docs/PROGRESS.md`
 - 운영 안내: `docs/OPERATIONS.md`
+- AI 자동 릴스: `docs/REELS.md` (구현 현황·다음 단계·라이선스 검토)
 - 화면 문구, 주석, 보고는 모두 한국어로 한다. 의존성은 꼭 필요한 것만 쓴다.
 - OpenAI·뉴스 API 키 등 비밀값은 Netlify 환경변수에만 둔다. `VITE_` 접두사 변수는 브라우저에 노출되므로 비밀값에 쓰지 않는다.
 - 기존 Firebase 프로젝트·Netlify 사이트는 절대 수정하거나 삭제하지 않는다.

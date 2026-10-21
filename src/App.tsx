@@ -14,6 +14,10 @@ const ContentCalendar = lazy(() => import('./pages/ContentCalendar'))
 const ImageLibrary = lazy(() => import('./pages/ImageLibrary'))
 const PastContents = lazy(() => import('./pages/PastContents'))
 const OpsSettings = lazy(() => import('./pages/OpsSettings'))
+const ReelsLayout = lazy(() => import('./pages/reels/ReelsLayout'))
+const ReelStudio = lazy(() => import('./pages/reels/ReelStudio'))
+const ReelDesigns = lazy(() => import('./pages/reels/ReelDesigns'))
+const ReelSoon = lazy(() => import('./pages/reels/ReelSoon'))
 
 const Loading = () => <div className="py-20 text-center text-muted">불러오는 중…</div>
 
@@ -40,6 +44,18 @@ export default function App() {
         <Route path="images" element={<ImageLibrary />} />
         <Route path="history" element={<PastContents />} />
         <Route path="settings" element={<OpsSettings />} />
+        <Route path="reels" element={<ReelsLayout />}>
+          <Route index element={<ReelStudio />} />
+          <Route path="designs" element={<ReelDesigns />} />
+          <Route
+            path="projects"
+            element={<ReelSoon title="내 프로젝트" items={['만든 릴스 프로젝트 자동 저장', '목록에서 열어 다시 편집', '완성한 MP4 다시 받기']} />}
+          />
+          <Route
+            path="settings"
+            element={<ReelSoon title="설정" items={['AI 대본 생성 연결(OpenAI 또는 로컬 AI)', '기본 목소리·말하기 속도', '기본 배경음악과 음량', '기본 디자인·영상 길이']} />}
+          />
+        </Route>
         <Route path="*" element={<Navigate to="/create" replace />} />
       </Route>
     </Routes>
