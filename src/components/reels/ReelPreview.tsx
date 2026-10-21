@@ -3,6 +3,7 @@ import { drawReelFrame, ensureReelFonts, REEL_H, REEL_W } from '../../reels/rend
 import { sceneTimes } from '../../reels/store'
 import type { ReelPlayer } from '../../reels/player'
 import type { ReelProject } from '../../reels/types'
+import { isExporting } from '../../reels/exporter'
 
 /** 9:16 실제 크기(1080×1920)로 그리고 화면에 맞춰 줄여 보여 주는 미리보기 */
 export default function ReelPreview({ project, player, className }: { project: ReelProject; player?: ReelPlayer; className?: string }) {
@@ -29,7 +30,8 @@ export default function ReelPreview({ project, player, className }: { project: R
       last = now
       const t = player ? player.timeRef.current : ownTime
       const playing = player ? player.playingRef.current : true
-      if (ctx) {
+      // MP4를 만드는 동안에는 영상 위치를 만들기 쪽이 쓰므로 미리보기는 쉰다
+      if (ctx && !isExporting()) {
         syncVideos(p, t, playing)
         drawReelFrame(ctx, p, t)
       }

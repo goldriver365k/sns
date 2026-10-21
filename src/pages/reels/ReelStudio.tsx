@@ -3,6 +3,7 @@ import ReelPreview from '../../components/reels/ReelPreview'
 import Timeline from '../../components/reels/Timeline'
 import SceneInspector from '../../components/reels/SceneInspector'
 import AssetPanel from '../../components/reels/AssetPanel'
+import ExportPanel from '../../components/reels/ExportPanel'
 import { blankScene, newSceneId, updateProject, useReelProject } from '../../reels/store'
 import { useReelPlayer } from '../../reels/player'
 import { maxScenesFor, splitScript } from '../../reels/storyboard'
@@ -151,6 +152,7 @@ export default function ReelStudio() {
             {player.range && <p className="mt-2 text-xs text-forest-700">선택한 장면만 반복 재생 중</p>}
             <p className="mt-2 text-[11px] text-muted">미리보기는 1080×1920 실제 크기로 그린 화면을 줄여 보여 줍니다. 영상은 소리 없이 재생됩니다.</p>
           </section>
+          <ExportPanel project={p} player={player} />
           <section className="rounded-2xl border border-dashed border-cream-300 p-4 text-xs leading-relaxed text-muted">
             <div className="mb-1 font-semibold text-forest-900">다음 단계에서 추가</div>
             <ul className="list-disc space-y-0.5 pl-4">
@@ -159,7 +161,6 @@ export default function ReelStudio() {
               <li>배경음악·음량·나레이션 중 자동 감소</li>
               <li>목소리와 맞춘 자동 자막</li>
               <li>장면 AI 재생성</li>
-              <li>1080×1920 MP4 제작·다운로드</li>
               <li>프로젝트 자동 저장·다시 편집</li>
             </ul>
           </section>
