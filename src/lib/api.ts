@@ -1,6 +1,7 @@
 import { auth } from './firebase'
 import type { GenerateRequest, GeneratedPost } from '../../shared/generate'
 import type { TteolbokCopy, TteolbokCopyRequest } from '../../shared/tteolbok'
+import type { KeywordCopyRequest, KeywordScene } from '../../shared/keyword'
 
 /** 서버 함수로 게시물 1개를 생성한다. 실패하면 사용자에게 보여줄 한국어 메시지로 예외를 던진다. */
 export async function generatePost(req: GenerateRequest): Promise<GeneratedPost> {
@@ -82,4 +83,28 @@ export async function generateTteolbokCopy(req: TteolbokCopyRequest): Promise<Tt
     throw new Error(data?.error || `문구를 만들지 못했습니다. (HTTP ${res.status})`)
   }
   return data.copy as TteolbokCopy
+}
+
+/** 핵심어 타이포: 주제 하나로 장면별 핵심어·문장을 만든다 */
+export async function generateKeywordScenes(req: KeywordCopyRequest): Promise<KeywordScene[]> {
+  const user = auth?.currentUser
+  if (!user) throw new Error('로그인이 필요합니다.')
+  let res: Response
+  try {
+    res = await fetch('/.netlify/functions/keyword-copy', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${await user.getIdToken()}`, 'content-type': 'application/json' },
+      body: JSON.stringify(req),
+      signal: AbortSignal.timeout(35_000),
+    })
+  } catch (e) {
+    if (e instanceof Error && e.name === 'TimeoutError') throw new Error('응답이 너무 늦습니다. 다시 시도해 주세요.')
+    throw new Error('네트워크 연결을 확인한 뒤 다시 시도해 주세요.')
+  }
+  const data = await res.json().catch(() => null)
+  if (!res.ok || !Array.isArray(data?.scenes)) {
+    if (res.status === 404) throw new Error('문구 생성 서버를 찾지 못했습니다. 배포 로그의 Functions 항목을 확인해 주세요. (HTTP 404)')
+    throw new Error(data?.error || `문구를 만들지 못했습니다. (HTTP ${res.status})`)
+  }
+  return data.scenes as KeywordScene[]
 }

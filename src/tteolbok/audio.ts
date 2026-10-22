@@ -58,6 +58,12 @@ async function decodeMono(buf: ArrayBuffer, sampleRate: number): Promise<Float32
 export type VoiceClips = { sampleRate: number; clips: Float32Array[]; durations: [number, number, number] }
 
 export async function decodeVoices(texts: [string, string, string], sampleRate: number): Promise<VoiceClips> {
+  const r = await decodeVoiceList(texts, sampleRate)
+  return { sampleRate, clips: r.clips, durations: r.durations as [number, number, number] }
+}
+
+/** 여러 문장의 음성을 풀어 둔다(없는 문장은 빈 소리). 핵심어 타이포처럼 장면 수가 정해지지 않은 곳에서 쓴다 */
+export async function decodeVoiceList(texts: string[], sampleRate: number): Promise<{ clips: Float32Array[]; durations: number[] }> {
   const clips: Float32Array[] = []
   for (const t of texts) {
     const buf = t ? voiceCache.get(t.trim()) : undefined
@@ -65,7 +71,7 @@ export async function decodeVoices(texts: [string, string, string], sampleRate: 
   }
   // 앞뒤 무음을 조금 잘라 타이밍을 맞춘다
   const trimmed = clips.map((x) => trimSilence(x, sampleRate))
-  return { sampleRate, clips: trimmed, durations: trimmed.map((x) => x.length / sampleRate) as [number, number, number] }
+  return { clips: trimmed, durations: trimmed.map((x) => x.length / sampleRate) }
 }
 
 function trimSilence(x: Float32Array, sr: number) {
@@ -130,12 +136,16 @@ export type Mix = { sampleRate: number; pcm: Float32Array; env: Float32Array }
 
 /** 음성 3구간 + 배경음악을 한 줄의 소리로 합치고, 입 모양 데이터를 만든다 */
 export function mixAudio(v: VoiceClips | null, cues: Cues, music: boolean, sr: number): Mix {
-  const N = Math.floor(sr * cues.end)
+  return mixTrack(v?.clips ?? [], [cues.a0, cues.sB, cues.sC], cues.end, music, sr)
+}
+
+/** 음성 조각들을 정해진 시각(초)에 놓고 배경음악과 합친다. 음성이 나올 때는 음악을 줄인다 */
+export function mixTrack(clips: Float32Array[], starts: number[], end: number, music: boolean, sr: number): Mix {
+  const N = Math.floor(sr * end)
   const voice = new Float32Array(N)
   const duck = new Float32Array(N).fill(1)
-  if (v) {
-    const starts = [cues.a0, cues.sB, cues.sC]
-    v.clips.forEach((clip, i) => {
+  {
+    clips.forEach((clip, i) => {
       if (!clip.length) return
       let peak = 0
       for (const x of clip) peak = Math.max(peak, Math.abs(x))
@@ -158,7 +168,7 @@ export function mixAudio(v: VoiceClips | null, cues: Cues, music: boolean, sr: n
     if (c >= 0 && c < N) smooth[c] = acc / Math.min(k, i + 1)
   }
   const pcm = new Float32Array(N)
-  const mus = music ? makeMusic(cues.end, sr) : null
+  const mus = music ? makeMusic(end, sr) : null
   let peak = 0
   for (let i = 0; i < N; i++) {
     pcm[i] = (mus ? mus[i] * smooth[i] : 0) + voice[i]
@@ -167,7 +177,7 @@ export function mixAudio(v: VoiceClips | null, cues: Cues, music: boolean, sr: n
   if (peak > 0.95) for (let i = 0; i < N; i++) pcm[i] = (pcm[i] / peak) * 0.95
 
   // 입 모양: 프레임별 음성 세기
-  const frames = Math.ceil(cues.end * FPS)
+  const frames = Math.ceil(end * FPS)
   const hop = sr / FPS
   const raw = new Float32Array(frames)
   for (let f = 0; f < frames; f++) {

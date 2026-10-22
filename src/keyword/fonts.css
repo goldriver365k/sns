@@ -1,0 +1,8 @@
+/* 핵심어 타이포 전용 폰트: 검은고딕(Black Han Sans, SIL OFL 1.1). 문장 손글씨는 털복이와 같은 개구체를 쓴다. */
+@import '../tteolbok/fonts.css';
+@font-face {
+  font-family: 'KW Black Han Sans';
+  src: url('/fonts/BlackHanSans.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}

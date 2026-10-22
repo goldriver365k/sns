@@ -5,7 +5,7 @@ import { drawTteolbokFrame, ensureTteolbokFonts, TT_H, TT_W, type FrameInput } f
 import { FPS } from './timeline'
 
 /**
- * 털복이 숏폼 MP4를 사용자의 PC(브라우저)에서 만든다 — 서버 비용 없음.
+ * 털복이 숏폼·핵심어 타이포 MP4를 사용자의 PC(브라우저)에서 만든다 — 서버 비용 없음.
  * 화면은 릴스와 같은 방식(WebCodecs, H.264 우선), 소리는 AAC를 먼저 쓰고 안 되면 Opus로 넣는다.
  */
 export type TteolbokExport = { blob: Blob; codec: 'avc' | 'vp9'; audio: 'aac' | 'opus' | null; seconds: number }
@@ -30,8 +30,24 @@ export async function pickAudioCodec() {
   return null
 }
 
+/** 털복이 숏폼 MP4 */
 export async function exportTteolbokMp4(
   frame: FrameInput,
+  mix: Mix | null,
+  audioCodec: Awaited<ReturnType<typeof pickAudioCodec>>,
+  opts: { onProgress?: (ratio: number) => void; signal?: AbortSignal } = {},
+): Promise<TteolbokExport> {
+  await ensureTteolbokFonts(frame)
+  const f = { ...frame, env: mix?.env ?? null }
+  return exportCanvasMp4({ width: TT_W, height: TT_H, duration: frame.cues.end, draw: (ctx, t) => drawTteolbokFrame(ctx, f, t) }, mix, audioCodec, opts)
+}
+
+/**
+ * 시간만으로 그리는 화면(draw)을 MP4로 만든다. 털복이 숏폼·핵심어 타이포가 함께 쓴다.
+ * 화면은 H.264 우선(안 되면 VP9), 소리는 AAC 우선(안 되면 Opus).
+ */
+export async function exportCanvasMp4(
+  src: { width: number; height: number; duration: number; draw: (ctx: CanvasRenderingContext2D, t: number) => void },
   mix: Mix | null,
   audioCodec: Awaited<ReturnType<typeof pickAudioCodec>>,
   opts: { onProgress?: (ratio: number) => void; signal?: AbortSignal } = {},
@@ -39,18 +55,19 @@ export async function exportTteolbokMp4(
   const picked = await pickCodec()
   if (!picked) throw new Error('이 브라우저는 영상 만들기를 지원하지 않습니다. PC의 크롬·엣지 최신 버전에서 다시 시도해 주세요.')
   const started = performance.now()
-  await ensureTteolbokFonts(frame)
+  const W = src.width
+  const H = src.height
 
   const canvas = document.createElement('canvas')
-  canvas.width = TT_W
-  canvas.height = TT_H
+  canvas.width = W
+  canvas.height = H
   const ctx = canvas.getContext('2d')!
   const withAudio = Boolean(mix && audioCodec && mix.sampleRate === audioCodec.sampleRate)
 
   const target = new ArrayBufferTarget()
   const muxer = new Muxer({
     target,
-    video: { codec: picked.mux, width: TT_W, height: TT_H, frameRate: FPS },
+    video: { codec: picked.mux, width: W, height: H, frameRate: FPS },
     ...(withAudio ? { audio: { codec: audioCodec!.mux, numberOfChannels: 1, sampleRate: audioCodec!.sampleRate } } : {}),
     fastStart: 'in-memory',
   })
@@ -58,8 +75,8 @@ export async function exportTteolbokMp4(
   const venc = new VideoEncoder({ output: (chunk, meta) => muxer.addVideoChunk(chunk, meta), error: (e) => (failure = e) })
   venc.configure({
     codec: picked.codec,
-    width: TT_W,
-    height: TT_H,
+    width: W,
+    height: H,
     bitrate: BITRATE,
     framerate: FPS,
     latencyMode: 'quality',
@@ -89,12 +106,11 @@ export async function exportTteolbokMp4(
       await aenc.flush()
     }
 
-    const f = { ...frame, env: mix?.env ?? null }
-    const total = Math.ceil(frame.cues.end * FPS)
+    const total = Math.ceil(src.duration * FPS)
     for (let i = 0; i < total; i++) {
       if (opts.signal?.aborted) throw new DOMException('취소되었습니다.', 'AbortError')
       if (failure) throw failure
-      drawTteolbokFrame(ctx, f, i / FPS)
+      src.draw(ctx, i / FPS)
       const vf = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) })
       venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 })
       vf.close()

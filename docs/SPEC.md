@@ -318,6 +318,7 @@ PC와 모바일 모두 대응한다.
 | 마루 부리 | SIL OFL 1.1 (네이버) | 가능 | 가능 |
 | Pretendard | SIL OFL 1.1 | 가능 | 가능 |
 | 개구체 Bold(Gaegu) — 털복이 숏폼 | SIL OFL 1.1 (Google Fonts) | 가능 | 가능 |
+| 검은고딕(Black Han Sans) — 핵심어 타이포 | SIL OFL 1.1 (Google Fonts) | 가능 | 가능 |
 | 카페24 써라운드에어 | 카페24 자체 무료 폰트 라이선스 | 가능 | 가능(상업 이용 허용). 단 폰트 파일 자체의 판매·수정·재배포 판매는 금지 |
 
 - OFL 폰트는 이미지에 써서 상업적으로 게시해도 되고, 폰트 파일을 사이트에 포함해도 된다(판매만 금지).
@@ -428,6 +429,7 @@ PC와 모바일 모두 대응한다.
   - OpenAI Chat Completions + JSON 스키마(구조화 출력). 모델은 `OPENAI_MODEL`, 추론형 모델이면 선택 설정 `OPENAI_REASONING_EFFORT`(예: low)로 속도를 높인다.
   - 생성 후 코드로 한 번 더 보장: 사이트 주소 누락 시 덧붙임, X·링크드인은 `https://` 제거, 본문 끝 해시태그 줄은 해시태그 칸으로 이동, 고정 해시태그와 중복 제거.
 - `POST /.netlify/functions/tteolbok-copy` / `tteolbok-voice`: 털복이 숏폼 문구(JSON 스키마)·한국어 AI 음성(mp3). 같은 관리자 토큰 검증. 상세: docs/REELS.md
+- `POST /.netlify/functions/keyword-copy`: 핵심어 타이포 장면 문구(주제 → 장면별 핵심어·문장, JSON 스키마). 같은 관리자 토큰 검증. 상세: docs/REELS.md
 - `GET /.netlify/functions/health`: 관리자 토큰 확인 후 환경변수 유무만 알려준다(값 비공개). 운영 설정의 [서버 연결 점검]에서 사용.
 - 오류 메시지에 HTTP 상태와 OpenAI가 알려준 원인을 함께 표시한다(관리자 전용 화면).
 - 화면: 결과를 노출 검사(`checkReach`)해서 통과 못 한 항목이 있으면 그 항목을 지정해 1번 더 생성(보완)한다.

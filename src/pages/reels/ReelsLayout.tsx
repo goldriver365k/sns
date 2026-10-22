@@ -7,7 +7,7 @@ const TABS = [
   { to: '/reels', label: '자동 릴스', end: true },
   { to: '/reels/tteolbok', label: '털복이 숏폼' },
   { to: '/reels/projects', label: '내 프로젝트' },
-  { to: '/reels/designs', label: '디자인' },
+  { to: '/reels/keyword', label: '핵심어 타이포' },
   { to: '/reels/settings', label: '설정' },
 ]
 

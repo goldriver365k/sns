@@ -16,7 +16,7 @@ const PastContents = lazy(() => import('./pages/PastContents'))
 const OpsSettings = lazy(() => import('./pages/OpsSettings'))
 const ReelsLayout = lazy(() => import('./pages/reels/ReelsLayout'))
 const ReelStudio = lazy(() => import('./pages/reels/ReelStudio'))
-const ReelDesigns = lazy(() => import('./pages/reels/ReelDesigns'))
+const KeywordStudio = lazy(() => import('./pages/reels/KeywordStudio'))
 const ReelSoon = lazy(() => import('./pages/reels/ReelSoon'))
 const ReelProjects = lazy(() => import('./pages/reels/ReelProjects'))
 const TteolbokStudio = lazy(() => import('./pages/reels/TteolbokStudio'))
@@ -49,7 +49,9 @@ export default function App() {
         <Route path="reels" element={<ReelsLayout />}>
           <Route index element={<ReelStudio />} />
           <Route path="tteolbok" element={<TteolbokStudio />} />
-          <Route path="designs" element={<ReelDesigns />} />
+          <Route path="keyword" element={<KeywordStudio />} />
+          {/* 예전 디자인 탭 주소는 핵심어 타이포로 보낸다 */}
+          <Route path="designs" element={<Navigate to="/reels/keyword" replace />} />
           <Route path="projects" element={<ReelProjects />} />
           <Route
             path="settings"
