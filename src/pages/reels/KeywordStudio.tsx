@@ -6,7 +6,7 @@ import { canShareImages } from '../../cards/export'
 import { KEYWORD_LIMITS, KEYWORD_SCENES_MAX, KEYWORD_SCENES_MIN, type KeywordScene } from '../../../shared/keyword'
 import { decodeVoiceList, fetchVoice, hasVoice, mixTrack, type Mix } from '../../tteolbok/audio'
 import { exportCanvasMp4, pickAudioCodec, type TteolbokExport } from '../../tteolbok/exporter'
-import { useBrandStores } from '../../tteolbok/stores'
+import { bandOf, useBrandStores } from '../../tteolbok/stores'
 import { drawKwFrame, ensureKwFonts, KW_DESIGNS, KW_H, KW_W, sceneTimings, type KwDesignId, type KwFrame } from '../../keyword/render'
 
 const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
@@ -81,7 +81,7 @@ export default function KeywordStudio() {
       design: d,
       scenes: list,
       timings: sceneTimings(list, voiceSec).list,
-      store: { name: store.name, loc: store.loc, bg: store.bg, fg: store.fg },
+      store: bandOf(store),
       aiLabel: voice && aiLabel,
     }),
     [store, voice, aiLabel],
@@ -91,7 +91,7 @@ export default function KeywordStudio() {
   useEffect(() => {
     if (playing) return
     let cancel = false
-    ensureKwFonts({ scenes: usable, store }).then(() => {
+    ensureKwFonts({ scenes: usable, store: bandOf(store) }).then(() => {
       if (cancel) return
       const c = canvas.current?.getContext('2d')
       if (c) drawKwFrame(c, frameFor(design, usable), 1e6)

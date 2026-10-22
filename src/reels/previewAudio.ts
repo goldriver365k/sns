@@ -35,7 +35,7 @@ export function useReelAudio(p: ReelProject, player: ReelPlayer) {
   const bufRef = useRef<AudioBuffer | null>(null)
   const srcRef = useRef<{ node: AudioBufferSourceNode; ctxStart: number; offset: number } | null>(null)
 
-  const sig = JSON.stringify([p.audio, p.duration, p.scenes.map((s) => narration(s)), sceneTimes(p).map((t) => t.start.toFixed(3)), v])
+  const sig = JSON.stringify([p.audio, p.language, p.duration, p.scenes.map((s) => narration(s)), sceneTimes(p).map((t) => t.start.toFixed(3)), v])
 
   useEffect(() => {
     let alive = true

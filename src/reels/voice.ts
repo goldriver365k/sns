@@ -25,11 +25,12 @@ function hash(s: string) {
   return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0')
 }
 
-export function voiceRequest(text: string, a: Pick<ReelAudio, 'voice' | 'style' | 'speed'>): ReelVoiceRequest {
-  return sanitizeVoiceRequest({ text, voice: a.voice, style: a.style, speed: a.speed })
+export function voiceRequest(text: string, a: Pick<ReelAudio, 'voice' | 'style' | 'speed'>, language = 'ko'): ReelVoiceRequest {
+  return sanitizeVoiceRequest({ text, voice: a.voice, style: a.style, speed: a.speed, language })
 }
 
-export const voiceKey = (r: ReelVoiceRequest) => 'v' + hash(`${r.voice}|${r.style}|${r.speed}|${r.text}`)
+// 한국어는 예전과 같은 열쇠(이미 만든 음성 재사용), 다른 언어는 언어를 붙인다
+export const voiceKey = (r: ReelVoiceRequest) => 'v' + hash(`${r.voice}|${r.style}|${r.speed}|${r.text}${r.language && r.language !== 'ko' ? `|${r.language}` : ''}`)
 
 /** 메모리에 올라온 음성 (화면·소리 합치기용) */
 export const cachedVoice = (key: string) => memory.get(key) ?? null

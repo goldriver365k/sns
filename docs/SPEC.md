@@ -419,6 +419,7 @@ PC와 모바일 모두 대응한다.
   - 자료 파일: 이 기기 브라우저 저장소(IndexedDB `snsroom-reels`/`files`, 키 = 자료 id)에 원본. 사진·로고·캐릭터는 `images/{자료 id}`에도 저장(`source: 'reel'`, 투명 배경 PNG는 PNG로 크기만 줄임) → `cloud: true`. 영상은 이 기기에만 저장(사용자 결정: 무료 방식).
   - `audio` — `{ voiceOn, voice, style, speed, music('none'|'builtin'|'file'), musicFile{id,name}|null, musicVolume(0~1), ducking }`. 내 음악 파일은 이 기기 IndexedDB에만.
   - `brandId` — AI 대본에 반영할 브랜드.
+  - `language` — 자막·AI 대본·목소리 언어(기본 ko).
   - `captions` — 언어별 인스타그램 캡션 `{ ko, en, … }`(해시태그·사이트 링크 포함).
   - 편집 내용은 1.2초 멈추면 자동 저장. 마지막으로 연 프로젝트는 다음에 릴스 화면에 들어오면 다시 열린다(localStorage `snsroom.reels.lastProject`).
 - `reelVoices/{key}` — 자동 릴스 나레이션 음성 저장(구현): `data`(mp3 base64), `createdAt`. key는 목소리·말투·속도·글의 해시. 같은 문장을 다시 만들지 않아 비용을 아낀다(이 기기 IndexedDB에도 같은 key로 저장).

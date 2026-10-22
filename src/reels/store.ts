@@ -28,6 +28,7 @@ export const freshProject = (): ReelProject => ({
   id: null,
   title: '새 릴스',
   brandId: null,
+  language: 'ko',
   topic: '',
   script: '',
   duration: 15 as ReelDuration,

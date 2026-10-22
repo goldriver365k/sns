@@ -14,6 +14,7 @@ import { useSaveStatus } from '../../reels/persist'
 import { maxScenesFor, scenesFromAi, splitScript } from '../../reels/storyboard'
 import { loadAiSettings, runReelScript } from '../../reels/ai'
 import { useChannels } from '../../lib/channels'
+import { LANGUAGES } from '../../lib/options'
 import type { ReelScriptBrand } from '../../../shared/reelScript'
 import { REEL_TEMPLATES } from '../../reels/templates'
 import type { ReelDuration, ReelProject, ReelScene } from '../../reels/types'
@@ -49,7 +50,7 @@ export default function ReelStudio() {
     if (mode === 'rewrite' && !p.script.trim()) return setAiError('다듬을 글을 대본 칸에 붙여넣어 주세요.')
     setAiBusy(mode)
     try {
-      const r = await runReelScript({ mode, topic: p.topic, source: p.script, duration: p.duration, brand: brandInfo })
+      const r = await runReelScript({ mode, topic: p.topic, source: p.script, duration: p.duration, brand: brandInfo, language: p.language })
       const cur = getProject()
       setUndo({ title: cur.title, script: cur.script, scenes: cur.scenes })
       const scenes = scenesFromAi(r.scenes, cur.assets.filter((a) => a.kind === 'media'))
@@ -132,6 +133,12 @@ export default function ReelStudio() {
               <option value="">선택 안 함</option>
               {channels.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+            <label className="mb-1 block text-xs text-muted" htmlFor="rl-lang">자막 언어 (AI 대본·목소리도 이 언어로)</label>
+            <select id="rl-lang" value={p.language} onChange={(e) => updateProject({ language: e.target.value })} className={`${field} mb-2`}>
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>{l.label}</option>
               ))}
             </select>
             <label className="mb-1 block text-xs text-muted" htmlFor="rl-topic">주제 한 줄</label>

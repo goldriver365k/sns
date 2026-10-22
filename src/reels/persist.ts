@@ -83,6 +83,7 @@ function toDoc(p: ReelProject): Omit<ReelDoc, 'thumbnail'> {
   return {
     title: p.title,
     brandId: p.brandId,
+    language: p.language,
     topic: p.topic,
     script: p.script,
     duration: p.duration,
@@ -270,6 +271,7 @@ export async function openProject(id: string) {
       id,
       title: d.title ?? '새 릴스',
       brandId: d.brandId ?? null,
+      language: d.language ?? 'ko',
       topic: d.topic ?? '',
       script: d.script ?? '',
       duration: d.duration ?? 15,

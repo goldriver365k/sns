@@ -11,7 +11,7 @@ import type { ReelAsset, ReelDuration } from './types'
 
 /**
  * SNS 게시물 만들기의 인스타그램 결과를 자동 릴스 새 프로젝트로 옮긴다.
- * - 카드 3장의 제목·본문·강조 문구 → 대본(한 줄 = 한 장면) → 장면 나누기
+ * - 보고 있던 언어의 카드 3장 제목·본문·강조 문구 → 대본(한 줄 = 한 장면) → 장면 나누기 (번역된 그대로)
  * - 게시물 사진 → 사진 자료(장면에 순서대로 배정)
  * - 언어별 캡션(해시태그·사이트 링크 포함) → 릴스 인스타그램 캡션
  * 지금 편집 중인 릴스는 먼저 저장된다.
@@ -24,6 +24,8 @@ export type PostForReel = {
   brandId: string | null
   siteUrl: string
   topic: string
+  /** 화면에서 보고 있던 언어 — 이 언어의 카드 글로 릴스를 만든다(번역된 그대로) */
+  language: string
 }
 
 const DURATION: ReelDuration = 15
@@ -45,7 +47,7 @@ export function scriptFromCards(post: GeneratedPost) {
 }
 
 export async function reelFromPost(src: PostForReel) {
-  const main = src.posts.find((p) => p.language === 'ko') ?? src.posts[0]
+  const main = src.posts.find((p) => p.language === src.language) ?? src.posts[0]
   if (!main) throw new Error('옮길 게시물이 없습니다.')
   const script = scriptFromCards(main.post) || main.post.body
   await newProject()
@@ -70,6 +72,7 @@ export async function reelFromPost(src: PostForReel) {
   updateProject({
     title: (main.post.cards[0]?.title || main.post.keyword || '인스타 게시물 릴스').slice(0, 40),
     brandId: src.brandId,
+    language: main.language,
     topic: src.topic || main.post.keyword,
     script,
     duration: DURATION,

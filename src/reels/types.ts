@@ -67,6 +67,8 @@ export type ReelProject = {
   /** 저장된 프로젝트 id — 아직 저장 전이면 null */
   id: string | null
   title: string
+  /** 자막·AI 대본·목소리 언어 (ko, en, zh, ja, vi, id, hi) */
+  language: string
   /** AI 대본에 반영할 브랜드(운영 설정의 브랜드 id) */
   brandId: string | null
   topic: string

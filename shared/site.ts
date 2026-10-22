@@ -47,3 +47,10 @@ const BRAND_LANGUAGES: Record<string, string[]> = {
 export function brandLanguages(name: string | undefined): string[] {
   return BRAND_LANGUAGES[norm(name ?? '')] ?? []
 }
+
+/** 영상 하단 띠에 브랜드 이름 없이 사이트 주소만 넣는 브랜드 (Hello Korean → hellokorean.site) */
+const SITE_ONLY_BAND = new Set(['hellokorean'])
+
+export function siteOnlyBand(name: string | undefined) {
+  return SITE_ONLY_BAND.has(norm(name ?? ''))
+}

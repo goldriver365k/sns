@@ -41,12 +41,12 @@ export default function SoundPanel({ project }: { project: ReelProject }) {
 
   const set = (patch: Partial<ReelAudio>) => updateProject((cur) => ({ audio: { ...cur.audio, ...patch } }))
   const texts = project.scenes.map((s) => narration(s))
-  const keySig = JSON.stringify([a.voice, a.style, a.speed, texts])
+  const keySig = JSON.stringify([a.voice, a.style, a.speed, project.language, texts])
 
   // 지금 설정·자막으로 준비된 음성 수 (저장된 것만 확인, 새로 만들지 않음)
   useEffect(() => {
     let alive = true
-    Promise.all(texts.map((t) => (t ? findVoice(voiceKey(voiceRequest(t, a))) : Promise.resolve(null)))).then(
+    Promise.all(texts.map((t) => (t ? findVoice(voiceKey(voiceRequest(t, a, project.language))) : Promise.resolve(null)))).then(
       (list) => alive && setReady(list.filter(Boolean).length),
     )
     return () => {
@@ -71,7 +71,7 @@ export default function SoundPanel({ project }: { project: ReelProject }) {
     setBusy('preview')
     try {
       const text = texts.find(Boolean) || '안녕하세요. 이 목소리로 릴스를 읽어 드립니다.'
-      const buf = await getVoice(voiceRequest(text, a))
+      const buf = await getVoice(voiceRequest(text, a, project.language))
       sample.current?.pause()
       const url = URL.createObjectURL(new Blob([buf], { type: 'audio/mpeg' }))
       const el = new Audio(url)
@@ -95,7 +95,7 @@ export default function SoundPanel({ project }: { project: ReelProject }) {
     try {
       for (let k = 0; k < list.length; k++) {
         setBusy(`음성 만드는 중 ${k + 1}/${list.length}`)
-        await getVoice(voiceRequest(list[k].t, a), abort.current.signal)
+        await getVoice(voiceRequest(list[k].t, a, project.language), abort.current.signal)
       }
       if (!a.voiceOn) set({ voiceOn: true })
       voicesChanged()

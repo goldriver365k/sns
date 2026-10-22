@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { drawKwFrame, ensureKwFonts, KW_DESIGNS, KW_H, KW_W, sceneTimings, type KwDesignId } from '../../keyword/render'
 import { keywordScenesFrom, matchStore, sendToKeyword, sendToTteolbok, tteolbokCopyFrom } from '../../reels/handoff'
 import { drawTteolbokFrame, ensureTteolbokFonts, loadBear, TT_DESIGNS, TT_H, TT_W, type DesignId } from '../../tteolbok/render'
-import { useBrandStores } from '../../tteolbok/stores'
+import { bandOf, useBrandStores } from '../../tteolbok/stores'
 import { estimateSeconds, makeCues, voiceTexts } from '../../tteolbok/timeline'
 import type { ReelProject } from '../../reels/types'
 
@@ -30,7 +30,7 @@ export default function OtherDesigns({ project, brandName }: { project: ReelProj
   }, [])
 
   const store = matchStore(stores, brandName)
-  const storeBox = store ? { name: store.name, loc: store.loc, bg: store.bg, fg: store.fg } : { name: brandName ?? '', loc: '' }
+  const storeBox = store ? bandOf(store) : { name: brandName ?? '', loc: '' }
   const textSig = JSON.stringify(project.scenes.map((s) => [s.text, s.priceText]))
   const copy = useMemo(() => tteolbokCopyFrom(project), [textSig]) // eslint-disable-line react-hooks/exhaustive-deps
   const kwScenes = useMemo(() => keywordScenesFrom(project), [textSig]) // eslint-disable-line react-hooks/exhaustive-deps

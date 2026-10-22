@@ -57,7 +57,7 @@ export default function SceneInspector({ project, brand, scene, player, onChange
     setAiError(null)
     setBusy(true)
     try {
-      const r = await runReelScript({ mode: 'scene', topic: project.topic, duration: project.duration, brand, scenes: project.scenes.map((s) => s.text), index, hint })
+      const r = await runReelScript({ mode: 'scene', topic: project.topic, duration: project.duration, brand, scenes: project.scenes.map((s) => s.text), index, hint, language: project.language })
       setPrev({ id: scene.id, text: scene.text })
       onChange({ text: r.scenes[0].text })
     } catch (e) {

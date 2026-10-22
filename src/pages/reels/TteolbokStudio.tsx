@@ -7,7 +7,7 @@ import { emptyCopy, TTEOLBOK_LIMITS, type TteolbokCopy } from '../../../shared/t
 import { decodeVoices, fetchVoice, hasVoice, mixAudio, type Mix } from '../../tteolbok/audio'
 import { exportTteolbokMp4, pickAudioCodec, type TteolbokExport } from '../../tteolbok/exporter'
 import { drawTteolbokFrame, ensureTteolbokFonts, loadBear, TT_DESIGNS, TT_H, TT_W, type DesignId, type FrameInput } from '../../tteolbok/render'
-import { useBrandStores } from '../../tteolbok/stores'
+import { bandOf, useBrandStores } from '../../tteolbok/stores'
 import { estimateSeconds, makeCues, plain, voiceTexts } from '../../tteolbok/timeline'
 
 const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
@@ -93,7 +93,7 @@ export default function TteolbokStudio() {
     (d: DesignId): FrameInput => ({
       design: d,
       copy,
-      store: { name: store.name, loc: store.loc, bg: store.bg, fg: store.fg },
+      store: bandOf(store),
       cues: makeCues(voiceTexts(copy).map(estimateSeconds) as [number, number, number], copy),
       voice,
       aiLabel,
@@ -107,7 +107,7 @@ export default function TteolbokStudio() {
   useEffect(() => {
     if (playing) return
     let cancel = false
-    ensureTteolbokFonts({ copy, store }).then(() => {
+    ensureTteolbokFonts({ copy, store: bandOf(store) }).then(() => {
       if (cancel) return
       const c = canvas.current?.getContext('2d')
       if (c) drawTteolbokFrame(c, restFrame(design), 999)
@@ -167,7 +167,7 @@ export default function TteolbokStudio() {
     const frame: FrameInput = {
       design,
       copy: c,
-      store: { name: store.name, loc: store.loc, bg: store.bg, fg: store.fg },
+      store: bandOf(store),
       cues,
       voice,
       aiLabel,

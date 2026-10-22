@@ -43,7 +43,7 @@ async function sceneVoices(p: ReelProject, sr: number): Promise<(Float32Array | 
     p.scenes.map(async (s) => {
       const text = narration(s)
       if (!text) return null
-      const key = voiceKey(voiceRequest(text, p.audio))
+      const key = voiceKey(voiceRequest(text, p.audio, p.language))
       const id = `${key}@${sr}`
       const hit = decoded.get(id)
       if (hit) return hit

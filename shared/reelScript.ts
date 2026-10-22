@@ -1,5 +1,6 @@
 // AI 자동 릴스 대본: 화면·서버 함수가 함께 쓰는 형식과 안내문(프롬프트)
 // 서버(OpenAI)와 로컬 AI가 같은 안내문을 쓰도록 여기 한 곳에 둔다.
+import { LANGUAGE_NAMES } from './generate'
 
 export type ReelScriptEffect = 'none' | 'sparkle' | 'fireworks' | 'highlight' | 'priceTag' | 'cta'
 
@@ -34,6 +35,8 @@ export type ReelScriptRequest = {
   index?: number
   /** scene: 추가 요청 (예: 더 짧게, 질문형으로) */
   hint?: string
+  /** 자막 언어 (기본 ko) */
+  language?: string
 }
 
 export const REEL_TEXT_MAX = 28
@@ -87,6 +90,7 @@ export function sanitizeReelRequest(raw: Partial<ReelScriptRequest>): ReelScript
     scenes: Array.isArray(raw.scenes) ? raw.scenes.slice(0, 20).map((s) => str(s, 80)) : [],
     index: Math.max(0, Math.min(19, Math.round(Number(raw.index) || 0))),
     hint: str(raw.hint, 100),
+    language: raw.language && raw.language in LANGUAGE_NAMES ? raw.language : 'ko',
   }
 }
 
@@ -102,7 +106,7 @@ export function buildReelMessages(r: ReelScriptRequest) {
     'priceTag는 입력에 실제로 나온 가격이 있을 때만 쓰고 priceText에 그 가격을 그대로 적는다. 가격이 없으면 priceText는 빈 문자열.',
     'cta는 마지막 장면에만 쓰고 ctaText는 12자 이하(예: 지금 주문하기). 그 외 장면의 ctaText는 빈 문자열.',
     'title: 프로젝트 제목, 20자 이하.',
-    '이모지, 해시태그, 확인되지 않은 효능·수치·가격·사실, 과장 광고 표현을 쓰지 않는다. 한국어로 쓴다.',
+    `이모지, 해시태그, 확인되지 않은 효능·수치·가격·사실, 과장 광고 표현을 쓰지 않는다. 자막과 제목은 ${LANGUAGE_NAMES[r.language ?? 'ko'] ?? '한국어'}로 쓴다(원문이 다른 언어여도).`,
   ]
   const brand = r.brand?.name
     ? [

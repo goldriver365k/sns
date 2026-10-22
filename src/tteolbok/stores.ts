@@ -2,7 +2,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { useEffect, useMemo, useState } from 'react'
 import { db } from '../lib/firebase'
 import { useChannels } from '../lib/channels'
-import { bareDomain, brandSite } from '../../shared/site'
+import { bareDomain, brandSite, siteOnlyBand } from '../../shared/site'
 
 /** 영상 하단에 나오는 상호. Firestore `settings/tteolbok` 의 `stores[]` */
 export type TteolbokStore = {
@@ -73,4 +73,10 @@ export function useBrandStores(): TteolbokStore[] {
       }),
     [channels, old],
   )
+}
+
+/** 영상 하단 띠에 그릴 글자 (Hello Korean은 사이트 주소 하나만) */
+export function bandOf(s: Pick<TteolbokStore, 'name' | 'loc' | 'bg' | 'fg'>) {
+  if (siteOnlyBand(s.name) && s.loc) return { name: s.loc, loc: '', bg: s.bg, fg: s.fg }
+  return { name: s.name, loc: s.loc, bg: s.bg, fg: s.fg }
 }

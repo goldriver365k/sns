@@ -81,7 +81,7 @@ export default function PostResult(props: Props) {
     setToReel(true)
     try {
       const { reelFromPost } = await import('../reels/fromPost')
-      await reelFromPost({ profile, posts, fixedHashtags, images: props.images, brandId: props.channelId ?? null, siteUrl: props.brand.siteUrl, topic: props.topic ?? '' })
+      await reelFromPost({ profile, posts, fixedHashtags, images: props.images, brandId: props.channelId ?? null, siteUrl: props.brand.siteUrl, topic: props.topic ?? '', language: active })
       navigate('/reels')
     } catch (e) {
       showToast(e instanceof Error ? e.message : '릴스로 옮기지 못했습니다.')
@@ -158,7 +158,7 @@ export default function PostResult(props: Props) {
       <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-cream-300 pt-4">
         {profile.kind === 'cards' && (
           <button onClick={makeReel} disabled={busy || toReel} className={`${btnGhost} mr-auto`} title="카드 글로 대본·장면, 사진, 캡션을 옮겨 자동 릴스 새 프로젝트를 만듭니다">
-            {toReel ? '릴스 만드는 중…' : '🎬 자동 릴스로 만들기'}
+            {toReel ? '릴스 만드는 중…' : `🎬 자동 릴스로 만들기${languages.length > 1 ? ` (${langLabel(active)})` : ''}`}
           </button>
         )}
         {props.onRegenerate && <button onClick={props.onRegenerate} disabled={busy} className={btnGhost}>다시 생성</button>}
