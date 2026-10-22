@@ -5,6 +5,7 @@ import { startAutosave } from '../../reels/persist'
 
 const TABS = [
   { to: '/reels', label: '자동 릴스', end: true },
+  { to: '/reels/tteolbok', label: '털복이 숏폼' },
   { to: '/reels/projects', label: '내 프로젝트' },
   { to: '/reels/designs', label: '디자인' },
   { to: '/reels/settings', label: '설정' },
@@ -23,7 +24,7 @@ export default function ReelsLayout() {
             <SaveIndicator />
           </div>
         </div>
-        <nav className="flex gap-1 rounded-xl bg-cream-200 p-1" aria-label="릴스 메뉴">
+        <nav className="flex flex-wrap gap-1 rounded-xl bg-cream-200 p-1" aria-label="릴스 메뉴">
           {TABS.map((t) => (
             <NavLink
               key={t.to}

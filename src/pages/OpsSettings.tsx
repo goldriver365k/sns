@@ -14,6 +14,8 @@ const LABELS: Record<string, string> = {
   imageModel: '이미지 모델 (OPENAI_IMAGE_MODEL)',
   reasoningEffort: '추론 정도 (OPENAI_REASONING_EFFORT)',
   adminEmails: '관리자 이메일 (ADMIN_EMAILS)',
+  ttsModel: '털복이 음성 모델 (OPENAI_TTS_MODEL)',
+  ttsVoice: '털복이 목소리 (OPENAI_TTS_VOICE)',
 }
 
 /** 서버(Netlify Functions)와 환경변수가 제대로 연결됐는지 확인하는 상자 */

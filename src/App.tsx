@@ -19,6 +19,7 @@ const ReelStudio = lazy(() => import('./pages/reels/ReelStudio'))
 const ReelDesigns = lazy(() => import('./pages/reels/ReelDesigns'))
 const ReelSoon = lazy(() => import('./pages/reels/ReelSoon'))
 const ReelProjects = lazy(() => import('./pages/reels/ReelProjects'))
+const TteolbokStudio = lazy(() => import('./pages/reels/TteolbokStudio'))
 
 const Loading = () => <div className="py-20 text-center text-muted">불러오는 중…</div>
 
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="settings" element={<OpsSettings />} />
         <Route path="reels" element={<ReelsLayout />}>
           <Route index element={<ReelStudio />} />
+          <Route path="tteolbok" element={<TteolbokStudio />} />
           <Route path="designs" element={<ReelDesigns />} />
           <Route path="projects" element={<ReelProjects />} />
           <Route

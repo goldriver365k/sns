@@ -1,0 +1,7 @@
+/* 털복이 숏폼 전용 폰트: 개구체 Bold (SIL OFL 1.1 — 상업 이용·임베딩 가능). 이 사이트에서 직접 제공한다. */
+@font-face {
+  font-family: 'Tteolbok Gaegu';
+  src: url('/fonts/Gaegu-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: block;
+}

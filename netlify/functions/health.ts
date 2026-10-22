@@ -17,5 +17,7 @@ export default async (req: Request) => {
     openaiModel: process.env.OPENAI_MODEL || '없음',
     reasoningEffort: process.env.OPENAI_REASONING_EFFORT || '설정 안 함',
     adminEmails: process.env.ADMIN_EMAILS ? '있음' : '없음(기본값 사용)',
+    ttsModel: process.env.OPENAI_TTS_MODEL || '설정 안 함(기본 gpt-4o-mini-tts)',
+    ttsVoice: process.env.OPENAI_TTS_VOICE || '설정 안 함(기본 coral)',
   })
 }
