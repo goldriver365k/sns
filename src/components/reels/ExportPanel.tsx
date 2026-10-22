@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { exportReelMp4, pickCodec, type ExportResult } from '../../reels/exporter'
+import { exportReelMp4, pickCodec, type ExportAudio, type ExportResult } from '../../reels/exporter'
+import { buildReelMix } from '../../reels/sound'
+import { pickAudioCodec } from '../../tteolbok/exporter'
 import { canShareImages } from '../../cards/export'
 import type { ReelProject } from '../../reels/types'
 import type { ReelPlayer } from '../../reels/player'
@@ -16,6 +18,7 @@ export default function ExportPanel({ project, player }: { project: ReelProject;
   const [progress, setProgress] = useState<number | null>(null)
   const [result, setResult] = useState<(ExportResult & { url: string; name: string }) | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [warn, setWarn] = useState<string | null>(null)
   const abort = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -28,13 +31,31 @@ export default function ExportPanel({ project, player }: { project: ReelProject;
 
   async function run() {
     setError(null)
+    setWarn(null)
     if (result) URL.revokeObjectURL(result.url)
     setResult(null)
     player.pause()
     abort.current = new AbortController()
     setProgress(0)
     try {
-      const r = await exportReelMp4(project, { onProgress: setProgress, signal: abort.current.signal })
+      // 목소리·음악이 켜져 있으면 소리를 합쳐 함께 넣는다
+      let audio: ExportAudio | null = null
+      const wantsSound = project.audio.voiceOn || project.audio.music !== 'none'
+      if (wantsSound) {
+        const codec = await pickAudioCodec()
+        if (!codec) setWarn('이 브라우저는 영상에 소리를 넣을 수 없어 소리 없이 만들었습니다. PC의 크롬·엣지를 권장합니다.')
+        else {
+          const mix = await buildReelMix(project, codec.sampleRate)
+          if (mix) {
+            audio = { pcm: mix.pcm, sampleRate: mix.sampleRate, codec: codec.codec, mux: codec.mux }
+            const notes: string[] = []
+            if (project.audio.voiceOn && mix.voiced < mix.scenes) notes.push(`음성이 없는 장면 ${mix.scenes - mix.voiced}개는 목소리 없이 들어갔습니다([목소리] 칸에서 음성 만들기).`)
+            if (mix.musicMissing) notes.push('이 기기에 음악 파일이 없어 음악 없이 만들었습니다.')
+            if (notes.length) setWarn(notes.join(' '))
+          }
+        }
+      }
+      const r = await exportReelMp4(project, { onProgress: setProgress, signal: abort.current.signal, audio })
       setResult({ ...r, url: URL.createObjectURL(r.blob), name: `reel_${stamp()}.mp4` })
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') setError('취소했습니다.')
@@ -73,7 +94,8 @@ export default function ExportPanel({ project, player }: { project: ReelProject;
     <section className="rounded-2xl border border-cream-300 bg-cream-50 p-4">
       <h2 className="mb-2 text-sm font-bold text-forest-900">MP4 만들기</h2>
       <p className="mb-2 text-[11px] leading-snug text-muted">
-        1080×1920 · 30fps · {project.duration}초. 이 컴퓨터에서 직접 만듭니다(서버로 보내지 않음). 지금은 <b>소리 없는 영상</b>입니다 — 목소리·음악은 다음 단계.
+        1080×1920 · 30fps · {project.duration}초. 이 컴퓨터에서 직접 만듭니다(서버로 보내지 않음).{' '}
+        {project.audio.voiceOn || project.audio.music !== 'none' ? '목소리·음악을 함께 넣습니다.' : <b>목소리·음악이 꺼져 있어 소리 없는 영상</b>}
       </p>
       {support === 'none' && <p className="mb-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">이 브라우저는 영상 만들기를 지원하지 않습니다. PC의 크롬·엣지 최신 버전에서 열어 주세요.</p>}
       {support === 'vp9' && <p className="mb-2 rounded-lg bg-yellow-50 px-3 py-2 text-xs text-yellow-800">이 브라우저는 H.264를 만들 수 없어 VP9 방식 MP4로 만듭니다. 일부 휴대폰·앱에서 안 열릴 수 있으니 크롬·엣지를 권장합니다.</p>}
@@ -95,12 +117,13 @@ export default function ExportPanel({ project, player }: { project: ReelProject;
         </button>
       )}
       {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+      {warn && <p className="mt-2 rounded-lg bg-yellow-50 px-3 py-2 text-xs text-yellow-800">{warn}</p>}
 
       {result && !busy && (
         <div className="mt-3 space-y-2">
           <video src={result.url} controls playsInline className="aspect-[9/16] w-full rounded-lg bg-black" />
           <p className="text-[11px] text-muted">
-            {mb}MB · {result.codec === 'avc' ? 'H.264' : 'VP9'} · {result.seconds.toFixed(0)}초 걸림
+            {mb}MB · {result.codec === 'avc' ? 'H.264' : 'VP9'} · {result.audio ? `소리 ${result.audio === 'aac' ? 'AAC' : 'Opus'}` : '소리 없음'} · {result.seconds.toFixed(0)}초 걸림
           </p>
           <button onClick={download} className="w-full rounded-xl bg-forest-700 py-2 text-sm font-semibold text-cream-50 hover:bg-forest-900">MP4 다운로드</button>
           {canShareImages() && <button onClick={shareToPhone} className="w-full rounded-xl border border-cream-300 bg-white py-2 text-sm">휴대폰에 저장·공유</button>}

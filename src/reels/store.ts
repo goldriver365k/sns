@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import type { ReelDuration, ReelProject, ReelScene } from './types'
+import type { ReelAudio, ReelDuration, ReelProject, ReelScene } from './types'
 
 /**
  * 지금 편집 중인 릴스 프로젝트 상태 (메뉴 탭을 옮겨 다녀도 유지).
@@ -10,6 +10,17 @@ export const newSceneId = () => Math.random().toString(36).slice(2, 10)
 export function blankScene(text = ''): ReelScene {
   return { id: newSceneId(), text, weight: 1, assetId: null, characterId: null, motion: 'zoomIn', subtitleAnim: 'pop', effects: [], priceText: '', ctaText: '' }
 }
+
+export const defaultAudio = (): ReelAudio => ({
+  voiceOn: false,
+  voice: 'coral',
+  style: 'bright',
+  speed: 1,
+  music: 'none',
+  musicFile: null,
+  musicVolume: 0.5,
+  ducking: true,
+})
 
 export const FIRST_HINT = '주제를 입력하거나 대본을 붙여넣고\n[장면 나누기]를 눌러 보세요'
 
@@ -25,6 +36,7 @@ export const freshProject = (): ReelProject => ({
   assets: [],
   logoId: null,
   showProgress: true,
+  audio: defaultAudio(),
   missing: [],
 })
 

@@ -8,7 +8,10 @@ import type { ReelProject } from './types'
  * 미리보기와 같은 drawReelFrame으로 한 프레임씩 그려 WebCodecs로 인코딩하고 MP4로 포장한다.
  * H.264를 먼저 쓰고(모든 휴대폰·인스타그램 재생), 브라우저가 H.264 인코딩을 못 하면 VP9로 대신 만든다.
  */
-export type ExportResult = { blob: Blob; codec: 'avc' | 'vp9'; seconds: number }
+export type ExportResult = { blob: Blob; codec: 'avc' | 'vp9'; audio: 'aac' | 'opus' | null; seconds: number }
+
+/** 소리 넣기: 합친 소리(mix)와 소리 형식(sampleRate가 같아야 함) */
+export type ExportAudio = { pcm: Float32Array; sampleRate: number; codec: string; mux: 'aac' | 'opus' }
 
 const FPS = 30
 
@@ -52,7 +55,7 @@ function seekVideo(v: HTMLVideoElement, time: number) {
 
 export async function exportReelMp4(
   p: ReelProject,
-  opts: { onProgress?: (ratio: number) => void; signal?: AbortSignal } = {},
+  opts: { onProgress?: (ratio: number) => void; signal?: AbortSignal; audio?: ExportAudio | null } = {},
 ): Promise<ExportResult> {
   const picked = await pickCodec()
   if (!picked) {
@@ -68,7 +71,13 @@ export async function exportReelMp4(
   const ctx = canvas.getContext('2d')!
 
   const target = new ArrayBufferTarget()
-  const muxer = new Muxer({ target, video: { codec: picked.mux, width: REEL_W, height: REEL_H, frameRate: FPS }, fastStart: 'in-memory' })
+  const sound = opts.audio ?? null
+  const muxer = new Muxer({
+    target,
+    video: { codec: picked.mux, width: REEL_W, height: REEL_H, frameRate: FPS },
+    ...(sound ? { audio: { codec: sound.mux, numberOfChannels: 1, sampleRate: sound.sampleRate } } : {}),
+    fastStart: 'in-memory',
+  })
   let failure: unknown = null
   const encoder = new VideoEncoder({
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
@@ -93,7 +102,22 @@ export async function exportReelMp4(
   const assets = new Map(p.assets.map((a) => [a.id, a]))
   const total = Math.ceil(p.duration * FPS)
 
+  let aenc: AudioEncoder | null = null
   try {
+    // 소리를 먼저 통째로 넣는다 (60초 이하라 부담 없음)
+    if (sound) {
+      aenc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => (failure = e) })
+      aenc.configure({ codec: sound.codec, sampleRate: sound.sampleRate, numberOfChannels: 1, bitrate: 128_000 })
+      const block = 4096
+      for (let i = 0; i < sound.pcm.length; i += block) {
+        const data = new Float32Array(sound.pcm.subarray(i, Math.min(sound.pcm.length, i + block)))
+        const ad = new AudioData({ format: 'f32-planar', sampleRate: sound.sampleRate, numberOfFrames: data.length, numberOfChannels: 1, timestamp: Math.round((i * 1e6) / sound.sampleRate), data })
+        aenc.encode(ad)
+        ad.close()
+      }
+      await aenc.flush()
+      if (failure) throw failure
+    }
     for (let i = 0; i < total; i++) {
       if (opts.signal?.aborted) throw new DOMException('취소되었습니다.', 'AbortError')
       if (failure) throw failure
@@ -117,9 +141,10 @@ export async function exportReelMp4(
     if (failure) throw failure
     muxer.finalize()
     opts.onProgress?.(1)
-    return { blob: new Blob([target.buffer], { type: 'video/mp4' }), codec: picked.mux, seconds: (performance.now() - started) / 1000 }
+    return { blob: new Blob([target.buffer], { type: 'video/mp4' }), codec: picked.mux, audio: sound ? sound.mux : null, seconds: (performance.now() - started) / 1000 }
   } finally {
     exporting = false
     if (encoder.state !== 'closed') encoder.close()
+    if (aenc && aenc.state !== 'closed') aenc.close()
   }
 }

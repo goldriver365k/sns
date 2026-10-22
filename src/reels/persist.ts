@@ -3,7 +3,7 @@ import { releaseAsset, restoreAsset } from './assets'
 import { deleteReelDoc, deleteReelImage, downloadReelImage, loadReelDoc, newProjectId, saveReelDoc, uploadReelImage, type ReelDoc } from './cloud'
 import { askPersistentStorage, deleteFile, getFile, putFile } from './localFiles'
 import { drawReelFrame, REEL_H, REEL_W } from './render'
-import { blankScene, FIRST_HINT, freshProject, getProject, replaceProject, sceneTimes, subscribeProject, updateProject } from './store'
+import { blankScene, defaultAudio, FIRST_HINT, freshProject, getProject, replaceProject, sceneTimes, subscribeProject, updateProject } from './store'
 import type { ReelAsset, ReelAssetMeta, ReelProject } from './types'
 
 /**
@@ -90,6 +90,7 @@ function toDoc(p: ReelProject): Omit<ReelDoc, 'thumbnail'> {
     scenes: p.scenes,
     logoId: p.logoId,
     showProgress: p.showProgress,
+    audio: p.audio,
     // 이 기기에 없는 자료도 정보는 남겨 둔다(다른 기기에서는 있을 수 있음)
     assets: [...p.assets.map(toMeta), ...p.missing],
   }
@@ -275,6 +276,7 @@ export async function openProject(id: string) {
       scenes: d.scenes?.length ? d.scenes.map((s) => ({ ...blankScene(), ...s })) : [blankScene('')],
       logoId: d.logoId ?? null,
       showProgress: d.showProgress ?? true,
+      audio: { ...defaultAudio(), ...(d.audio ?? {}) },
       assets,
       missing,
     }

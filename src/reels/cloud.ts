@@ -96,3 +96,18 @@ export async function deleteReelImage(id: string) {
     // 남아도 화면에는 영향 없음
   }
 }
+
+/** 나레이션 음성(mp3, base64)을 `reelVoices/{key}`에 저장 — 다른 기기에서 다시 만들지 않게(비용 절약) */
+export async function saveVoiceCloud(key: string, base64: string) {
+  if (base64.length > MAX_CHARS) return
+  await setDoc(doc(store(), 'reelVoices', key), { data: base64, createdAt: serverTimestamp() })
+}
+
+export async function loadVoiceCloud(key: string): Promise<string | null> {
+  try {
+    const snap = await getDoc(doc(store(), 'reelVoices', key))
+    return (snap.data()?.data as string | undefined) ?? null
+  } catch {
+    return null
+  }
+}

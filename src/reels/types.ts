@@ -1,4 +1,5 @@
 // AI 자동 릴스 — 데이터 형식
+import type { ReelStyleId, ReelVoiceId } from '../../shared/reelVoice'
 
 export type AssetKind = 'media' | 'logo' | 'character'
 
@@ -42,6 +43,23 @@ export type ReelScene = {
 export type ReelDuration = 10 | 15 | 30 | 60
 export type TemplateId = 'clean' | 'impact' | 'premium' | 'pop' | 'info'
 
+/** 목소리·배경음악 설정 */
+export type ReelAudio = {
+  /** AI 나레이션(장면 자막을 읽음) */
+  voiceOn: boolean
+  voice: ReelVoiceId
+  style: ReelStyleId
+  speed: number
+  /** 배경음악: 없음 / 기본 음악(직접 합성, 저작권 걱정 없음) / 내 음악 파일 */
+  music: 'none' | 'builtin' | 'file'
+  /** 내 음악 파일 (파일은 이 기기 저장소에만) */
+  musicFile: { id: string; name: string } | null
+  /** 음악 크기 0~1 */
+  musicVolume: number
+  /** 나레이션이 나올 때 음악 자동으로 줄이기 */
+  ducking: boolean
+}
+
 /** 저장용 자료 정보 (파일 자체는 따로 저장) */
 export type ReelAssetMeta = Pick<ReelAsset, 'id' | 'kind' | 'type' | 'name' | 'width' | 'height' | 'duration' | 'keyModel' | 'cloud'>
 
@@ -59,6 +77,7 @@ export type ReelProject = {
   assets: ReelAsset[]
   logoId: string | null
   showProgress: boolean
+  audio: ReelAudio
   /** 이 기기에서 파일을 찾지 못한 자료(주로 다른 기기에서 넣은 영상) — [다시 넣기]로 채운다 */
   missing: ReelAssetMeta[]
 }

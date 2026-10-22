@@ -121,7 +121,7 @@ export default function SceneInspector({ project, brand, scene, player, onChange
           </div>
           <div>
             <label className={label} htmlFor="sc-len">장면 길이 비율 {scene.weight} → 약 {t.len.toFixed(1)}초</label>
-            <input id="sc-len" type="range" min={1} max={12} value={scene.weight} onChange={(e) => onChange({ weight: Number(e.target.value) })} className="w-full accent-forest-700" />
+            <input id="sc-len" type="range" min={0.5} max={12} step={0.1} value={scene.weight} onChange={(e) => onChange({ weight: Number(e.target.value) })} className="w-full accent-forest-700" />
           </div>
           <div>
             <span className={label}>사진·영상</span>

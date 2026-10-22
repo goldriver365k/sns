@@ -4,6 +4,8 @@ import Timeline from '../../components/reels/Timeline'
 import SceneInspector from '../../components/reels/SceneInspector'
 import AssetPanel from '../../components/reels/AssetPanel'
 import ExportPanel from '../../components/reels/ExportPanel'
+import SoundPanel from '../../components/reels/SoundPanel'
+import { useReelAudio } from '../../reels/previewAudio'
 import { blankScene, getProject, newSceneId, updateProject, useReelProject } from '../../reels/store'
 import { useReelPlayer } from '../../reels/player'
 import { useSaveStatus } from '../../reels/persist'
@@ -23,6 +25,7 @@ const field = 'w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text
 export default function ReelStudio() {
   const p = useReelProject()
   const player = useReelPlayer(p.duration)
+  useReelAudio(p, player)
   const [selected, setSelected] = useState<string | null>(p.scenes[0]?.id ?? null)
   const [notice, setNotice] = useState<string | null>(null)
   const scene = p.scenes.find((s) => s.id === selected) ?? p.scenes[0]
@@ -191,6 +194,11 @@ export default function ReelStudio() {
           </section>
 
           <section className={box}>
+            <h2 className={heading}>목소리·배경음악</h2>
+            <SoundPanel project={p} />
+          </section>
+
+          <section className={box}>
             <h2 className={heading}>자료 (사진·영상·로고·캐릭터)</h2>
             <AssetPanel
               project={p}
@@ -238,17 +246,9 @@ export default function ReelStudio() {
               </button>
             </div>
             {player.range && <p className="mt-2 text-xs text-forest-700">선택한 장면만 반복 재생 중</p>}
-            <p className="mt-2 text-[11px] text-muted">미리보기는 1080×1920 실제 크기로 그린 화면을 줄여 보여 줍니다. 영상은 소리 없이 재생됩니다.</p>
+            <p className="mt-2 text-[11px] text-muted">미리보기는 1080×1920 실제 크기로 그린 화면을 줄여 보여 줍니다. 목소리·배경음악이 켜져 있으면 함께 들립니다(넣은 영상 자체의 소리는 쓰지 않음).</p>
           </section>
           <ExportPanel project={p} player={player} />
-          <section className="rounded-2xl border border-dashed border-cream-300 p-4 text-xs leading-relaxed text-muted">
-            <div className="mb-1 font-semibold text-forest-900">다음 단계에서 추가</div>
-            <ul className="list-disc space-y-0.5 pl-4">
-              <li>한국어 AI 목소리(속도 조절·미리 듣기)</li>
-              <li>배경음악·음량·나레이션 중 자동 감소</li>
-              <li>목소리와 맞춘 자동 자막</li>
-            </ul>
-          </section>
         </aside>
       </div>
 

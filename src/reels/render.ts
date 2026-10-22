@@ -42,6 +42,8 @@ export function drawReelFrame(ctx: CanvasRenderingContext2D, p: ReelProject, t: 
 
   const logo = p.logoId ? assets.get(p.logoId) : undefined
   if (logo) drawLogo(ctx, logo, t)
+  // AI 음성을 쓰면 듣는 사람에게 알린다(OpenAI 음성 이용 조건)
+  if (p.audio?.voiceOn) drawAiVoiceBadge(ctx)
   if (p.showProgress) {
     ctx.fillStyle = 'rgba(255,255,255,0.25)'
     ctx.fillRect(0, REEL_H - 12, REEL_W, 12)
@@ -50,6 +52,21 @@ export function drawReelFrame(ctx: CanvasRenderingContext2D, p: ReelProject, t: 
   }
   ctx.restore()
   return { sceneIndex: i, sceneStart: start, sceneLength: len }
+}
+
+function drawAiVoiceBadge(ctx: CanvasRenderingContext2D) {
+  ctx.save()
+  ctx.font = '600 30px "Pretendard Variable"'
+  const w = ctx.measureText('AI 음성').width + 36
+  ctx.fillStyle = 'rgba(0,0,0,0.45)'
+  ctx.beginPath()
+  ctx.roundRect(40, 44, w, 50, 25)
+  ctx.fill()
+  ctx.fillStyle = '#ffffff'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('AI 음성', 40 + w / 2, 70)
+  ctx.restore()
 }
 
 // ── 배경·사진 ─────────────────────────────────────────────

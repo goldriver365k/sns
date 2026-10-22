@@ -47,7 +47,7 @@ export default function ReelProjects() {
     setError(null)
     setBusyId(item.id)
     try {
-      await deleteProject(item.id, (item.assets ?? []).map((a) => a.id))
+      await deleteProject(item.id, [...(item.assets ?? []).map((a) => a.id), ...(item.audio?.musicFile ? [item.audio.musicFile.id] : [])])
       setItems((list) => list?.filter((x) => x.id !== item.id) ?? null)
     } catch {
       setError('삭제하지 못했습니다. 네트워크를 확인해 주세요.')
