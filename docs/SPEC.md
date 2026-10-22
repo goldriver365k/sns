@@ -429,6 +429,7 @@ PC와 모바일 모두 대응한다.
   - OpenAI Chat Completions + JSON 스키마(구조화 출력). 모델은 `OPENAI_MODEL`, 추론형 모델이면 선택 설정 `OPENAI_REASONING_EFFORT`(예: low)로 속도를 높인다.
   - 생성 후 코드로 한 번 더 보장: 사이트 주소 누락 시 덧붙임, X·링크드인은 `https://` 제거, 본문 끝 해시태그 줄은 해시태그 칸으로 이동, 고정 해시태그와 중복 제거.
 - `POST /.netlify/functions/tteolbok-copy` / `tteolbok-voice`: 털복이 숏폼 문구(JSON 스키마)·한국어 AI 음성(mp3). 같은 관리자 토큰 검증. 상세: docs/REELS.md
+- `POST /.netlify/functions/reel-script`: 자동 릴스 대본(mode: topic 주제로 새로 / rewrite 붙여넣은 글 다듬기 / scene 장면 하나 다시 쓰기, JSON 스키마). 같은 관리자 토큰 검증. 안내문·정리 규칙은 `shared/reelScript.ts`(로컬 AI도 같은 규칙). 상세: docs/REELS.md
 - `POST /.netlify/functions/keyword-copy`: 핵심어 타이포 장면 문구(주제 → 장면별 핵심어·문장, JSON 스키마). 같은 관리자 토큰 검증. 상세: docs/REELS.md
 - `GET /.netlify/functions/health`: 관리자 토큰 확인 후 환경변수 유무만 알려준다(값 비공개). 운영 설정의 [서버 연결 점검]에서 사용.
 - 오류 메시지에 HTTP 상태와 OpenAI가 알려준 원인을 함께 표시한다(관리자 전용 화면).

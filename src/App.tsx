@@ -17,8 +17,8 @@ const OpsSettings = lazy(() => import('./pages/OpsSettings'))
 const ReelsLayout = lazy(() => import('./pages/reels/ReelsLayout'))
 const ReelStudio = lazy(() => import('./pages/reels/ReelStudio'))
 const KeywordStudio = lazy(() => import('./pages/reels/KeywordStudio'))
-const ReelSoon = lazy(() => import('./pages/reels/ReelSoon'))
 const ReelProjects = lazy(() => import('./pages/reels/ReelProjects'))
+const ReelSettings = lazy(() => import('./pages/reels/ReelSettings'))
 const TteolbokStudio = lazy(() => import('./pages/reels/TteolbokStudio'))
 
 const Loading = () => <div className="py-20 text-center text-muted">불러오는 중…</div>
@@ -53,10 +53,7 @@ export default function App() {
           {/* 예전 디자인 탭 주소는 핵심어 타이포로 보낸다 */}
           <Route path="designs" element={<Navigate to="/reels/keyword" replace />} />
           <Route path="projects" element={<ReelProjects />} />
-          <Route
-            path="settings"
-            element={<ReelSoon title="설정" items={['AI 대본 생성 연결(OpenAI 또는 로컬 AI)', '기본 목소리·말하기 속도', '기본 배경음악과 음량', '기본 디자인·영상 길이']} />}
-          />
+          <Route path="settings" element={<ReelSettings />} />
         </Route>
         <Route path="*" element={<Navigate to="/create" replace />} />
       </Route>

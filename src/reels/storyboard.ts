@@ -1,4 +1,5 @@
 import { blankScene } from './store'
+import type { ReelScriptScene } from '../../shared/reelScript'
 import type { ReelAsset, ReelScene } from './types'
 
 /**
@@ -45,3 +46,19 @@ function halve(s: string): string[] {
 
 /** 영상 길이에 맞는 최대 장면 수 (장면당 최소 약 1.5초) */
 export const maxScenesFor = (duration: number) => Math.max(3, Math.min(20, Math.floor(duration / 1.5)))
+
+/** AI가 만든 장면을 릴스 장면으로 바꾼다 (사진·영상은 순서대로 배정, 움직임·자막 효과는 돌아가며) */
+export function scenesFromAi(list: ReelScriptScene[], media: ReelAsset[]): ReelScene[] {
+  const motions: ReelScene['motion'][] = ['zoomIn', 'panLeft', 'zoomOut', 'panRight']
+  const anims: ReelScene['subtitleAnim'][] = ['pop', 'slideUp', 'typewriter', 'fade']
+  return list.map((s, i) => ({
+    ...blankScene(s.text),
+    weight: Math.min(12, Math.max(1, Math.round(s.seconds))),
+    assetId: media.length ? media[i % media.length].id : null,
+    motion: motions[i % motions.length],
+    subtitleAnim: anims[i % anims.length],
+    effects: s.effect === 'none' ? [] : [s.effect],
+    priceText: s.priceText,
+    ctaText: s.ctaText,
+  }))
+}

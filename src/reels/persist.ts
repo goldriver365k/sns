@@ -82,6 +82,7 @@ const toMeta = ({ id, kind, type, name, width, height, duration, keyModel, cloud
 function toDoc(p: ReelProject): Omit<ReelDoc, 'thumbnail'> {
   return {
     title: p.title,
+    brandId: p.brandId,
     topic: p.topic,
     script: p.script,
     duration: p.duration,
@@ -266,6 +267,7 @@ export async function openProject(id: string) {
     const next: ReelProject = {
       id,
       title: d.title ?? '새 릴스',
+      brandId: d.brandId ?? null,
       topic: d.topic ?? '',
       script: d.script ?? '',
       duration: d.duration ?? 15,

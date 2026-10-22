@@ -1,4 +1,7 @@
+import { useState } from 'react'
+import { runReelScript } from '../../reels/ai'
 import { sceneTimes } from '../../reels/store'
+import type { ReelScriptBrand } from '../../../shared/reelScript'
 import type { ReelPlayer } from '../../reels/player'
 import type { EffectId, MotionId, ReelProject, ReelScene, SubtitleAnim } from '../../reels/types'
 
@@ -28,6 +31,7 @@ const label = 'mb-1 block text-xs font-semibold text-muted'
 
 type Props = {
   project: ReelProject
+  brand: ReelScriptBrand | null
   scene: ReelScene
   player: ReelPlayer
   onChange: (patch: Partial<ReelScene>) => void
@@ -37,12 +41,31 @@ type Props = {
 }
 
 /** 선택한 장면 설정: 자막, 길이, 사진·영상, 움직임, 자막 효과, 모션그래픽 */
-export default function SceneInspector({ project, scene, player, onChange, onMove, onDuplicate, onDelete }: Props) {
+export default function SceneInspector({ project, brand, scene, player, onChange, onMove, onDuplicate, onDelete }: Props) {
   const index = project.scenes.findIndex((s) => s.id === scene.id)
   const t = sceneTimes(project)[index]
   const media = project.assets.filter((a) => a.kind === 'media')
   const characters = project.assets.filter((a) => a.kind === 'character')
   const looping = !!player.range && Math.abs(player.range[0] - t.start) < 0.001
+
+  const [hint, setHint] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const [prev, setPrev] = useState<{ id: string; text: string } | null>(null)
+
+  async function rewrite() {
+    setAiError(null)
+    setBusy(true)
+    try {
+      const r = await runReelScript({ mode: 'scene', topic: project.topic, duration: project.duration, brand, scenes: project.scenes.map((s) => s.text), index, hint })
+      setPrev({ id: scene.id, text: scene.text })
+      onChange({ text: r.scenes[0].text })
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : '장면을 다시 쓰지 못했습니다.')
+    } finally {
+      setBusy(false)
+    }
+  }
 
   function toggleEffect(id: EffectId) {
     onChange({ effects: scene.effects.includes(id) ? scene.effects.filter((e) => e !== id) : [...scene.effects, id] })
@@ -77,6 +100,24 @@ export default function SceneInspector({ project, scene, player, onChange, onMov
           <div>
             <label className={label} htmlFor="sc-text">자막</label>
             <textarea id="sc-text" rows={3} value={scene.text} onChange={(e) => onChange({ text: e.target.value })} className={`${field} resize-y`} placeholder="이 장면에 나올 자막" />
+            <div className="mt-1.5 flex gap-1.5">
+              <input value={hint} onChange={(e) => setHint(e.target.value)} className={field} placeholder="요청(선택) 예) 더 짧게, 질문으로" maxLength={100} aria-label="AI 요청" />
+              <button onClick={rewrite} disabled={busy} className="shrink-0 rounded-lg bg-forest-700 px-3 text-xs font-semibold text-cream-50 disabled:opacity-60">
+                {busy ? '쓰는 중…' : '✨ AI로 다시 쓰기'}
+              </button>
+            </div>
+            {aiError && <p className="mt-1 text-xs text-red-700">{aiError}</p>}
+            {prev?.id === scene.id && prev.text !== scene.text && (
+              <button
+                onClick={() => {
+                  onChange({ text: prev.text })
+                  setPrev(null)
+                }}
+                className="mt-1 text-xs font-medium text-forest-500 underline"
+              >
+                ↩ 이전 자막으로 되돌리기
+              </button>
+            )}
           </div>
           <div>
             <label className={label} htmlFor="sc-len">장면 길이 비율 {scene.weight} → 약 {t.len.toFixed(1)}초</label>

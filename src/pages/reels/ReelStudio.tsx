@@ -4,12 +4,15 @@ import Timeline from '../../components/reels/Timeline'
 import SceneInspector from '../../components/reels/SceneInspector'
 import AssetPanel from '../../components/reels/AssetPanel'
 import ExportPanel from '../../components/reels/ExportPanel'
-import { blankScene, newSceneId, updateProject, useReelProject } from '../../reels/store'
+import { blankScene, getProject, newSceneId, updateProject, useReelProject } from '../../reels/store'
 import { useReelPlayer } from '../../reels/player'
 import { useSaveStatus } from '../../reels/persist'
-import { maxScenesFor, splitScript } from '../../reels/storyboard'
+import { maxScenesFor, scenesFromAi, splitScript } from '../../reels/storyboard'
+import { loadAiSettings, runReelScript } from '../../reels/ai'
+import { useChannels } from '../../lib/channels'
+import type { ReelScriptBrand } from '../../../shared/reelScript'
 import { REEL_TEMPLATES } from '../../reels/templates'
-import type { ReelDuration, ReelScene } from '../../reels/types'
+import type { ReelDuration, ReelProject, ReelScene } from '../../reels/types'
 
 const DURATIONS: ReelDuration[] = [10, 15, 30, 60]
 const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
@@ -25,6 +28,49 @@ export default function ReelStudio() {
   const scene = p.scenes.find((s) => s.id === selected) ?? p.scenes[0]
   const media = p.assets.filter((a) => a.kind === 'media')
   const { loading } = useSaveStatus()
+  const { channels } = useChannels()
+  const [aiBusy, setAiBusy] = useState<'topic' | 'rewrite' | null>(null)
+  const [aiError, setAiError] = useState<string | null>(null)
+  /** AI로 바꾸기 전 상태 — [되돌리기]용 */
+  const [undo, setUndo] = useState<Pick<ReelProject, 'title' | 'script' | 'scenes'> | null>(null)
+  const brand = channels.find((c) => c.id === p.brandId) ?? null
+  const brandInfo: ReelScriptBrand | null = brand ? { name: brand.name, siteUrl: brand.siteUrl, description: brand.description, rules: brand.rules } : null
+  const aiLabel = loadAiSettings().provider === 'local' ? '로컬 AI' : '서버 AI'
+
+  async function runAi(mode: 'topic' | 'rewrite') {
+    setAiError(null)
+    setNotice(null)
+    if (mode === 'topic' && !p.topic.trim()) return setAiError('주제를 먼저 적어 주세요.')
+    if (mode === 'rewrite' && !p.script.trim()) return setAiError('다듬을 글을 대본 칸에 붙여넣어 주세요.')
+    setAiBusy(mode)
+    try {
+      const r = await runReelScript({ mode, topic: p.topic, source: p.script, duration: p.duration, brand: brandInfo })
+      const cur = getProject()
+      setUndo({ title: cur.title, script: cur.script, scenes: cur.scenes })
+      const scenes = scenesFromAi(r.scenes, cur.assets.filter((a) => a.kind === 'media'))
+      updateProject({
+        scenes,
+        script: r.scenes.map((x) => x.text.replace(/\n/g, ' ')).join('\n'),
+        title: !cur.title.trim() || cur.title === '새 릴스' ? r.title || cur.title : cur.title,
+      })
+      setSelected(scenes[0].id)
+      player.setRange(null)
+      player.seek(0)
+      setNotice(`${aiLabel}가 장면 ${scenes.length}개를 만들었습니다. 자막·효과는 아래에서 고칠 수 있습니다.`)
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : 'AI 대본을 만들지 못했습니다.')
+    } finally {
+      setAiBusy(null)
+    }
+  }
+
+  function restore() {
+    if (!undo) return
+    updateProject(undo)
+    setSelected(undo.scenes[0]?.id ?? null)
+    setUndo(null)
+    setNotice('AI로 바꾸기 전으로 되돌렸습니다.')
+  }
 
   // 다른 프로젝트를 열거나 새로 시작하면 처음 장면부터 (처음 저장되며 id가 생길 때는 그대로)
   const prevId = useRef(p.id)
@@ -34,6 +80,8 @@ export default function ReelStudio() {
     if (prev === p.id || (prev === null && p.id !== null && !loading)) return
     setSelected(p.scenes[0]?.id ?? null)
     setNotice(null)
+    setUndo(null)
+    setAiError(null)
     player.setRange(null)
     player.seek(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -74,9 +122,19 @@ export default function ReelStudio() {
             <h2 className={heading}>주제·대본</h2>
             <label className="mb-1 block text-xs text-muted" htmlFor="rl-title">제목 (정보·프리미엄 디자인 위쪽에 표시)</label>
             <input id="rl-title" value={p.title} onChange={(e) => updateProject({ title: e.target.value })} className={`${field} mb-2`} maxLength={40} />
+            <label className="mb-1 block text-xs text-muted" htmlFor="rl-brand">브랜드 (선택 — AI 대본에 사이트·규칙 반영)</label>
+            <select id="rl-brand" value={p.brandId ?? ''} onChange={(e) => updateProject({ brandId: e.target.value || null })} className={`${field} mb-2`}>
+              <option value="">선택 안 함</option>
+              {channels.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
             <label className="mb-1 block text-xs text-muted" htmlFor="rl-topic">주제 한 줄</label>
-            <input id="rl-topic" value={p.topic} onChange={(e) => updateProject({ topic: e.target.value })} className={`${field} mb-1`} placeholder="예) 화산불백 점심 세트 소개" maxLength={200} />
-            <p className="mb-2 text-[11px] text-muted">주제로 대본을 자동으로 쓰는 기능(AI)은 다음 단계에서 연결합니다. 지금은 아래에 대본을 직접 쓰거나 붙여넣어 주세요.</p>
+            <input id="rl-topic" value={p.topic} onChange={(e) => updateProject({ topic: e.target.value })} className={`${field} mb-2`} placeholder="예) 화산불백 점심 세트 9,900원 소개" maxLength={200} />
+            <button onClick={() => runAi('topic')} disabled={!!aiBusy} className="mb-1 w-full rounded-xl bg-forest-700 py-2.5 text-sm font-semibold text-cream-50 hover:bg-forest-900 disabled:opacity-60">
+              {aiBusy === 'topic' ? `${aiLabel}가 대본 쓰는 중…` : `✨ 주제로 AI 대본·장면 만들기 (${p.duration}초)`}
+            </button>
+            <p className="mb-3 text-[11px] text-muted">가격은 주제에 적은 것만 씁니다. AI 연결은 설정 탭에서 바꿉니다({aiLabel} 사용 중).</p>
             <label className="mb-1 block text-xs text-muted" htmlFor="rl-script">대본 (한 줄 = 한 장면)</label>
             <textarea
               id="rl-script"
@@ -87,10 +145,22 @@ export default function ReelStudio() {
               placeholder={'점심 고민 끝!\n불로 굽고 밥으로 완성한 불백\n오늘만 9,900원\n지금 bulbaek.com에서 확인하세요'}
               maxLength={3000}
             />
-            <button onClick={makeScenes} className="mt-2 w-full rounded-xl bg-forest-700 py-2.5 text-sm font-semibold text-cream-50 hover:bg-forest-900">
-              장면 나누기
-            </button>
+            <div className="mt-2 grid grid-cols-2 gap-1.5">
+              <button onClick={makeScenes} disabled={!!aiBusy} className="rounded-xl border border-forest-700 bg-white py-2.5 text-sm font-semibold text-forest-700 hover:bg-cream-100 disabled:opacity-60">
+                장면 나누기
+              </button>
+              <button onClick={() => runAi('rewrite')} disabled={!!aiBusy} className="rounded-xl border border-forest-700 bg-white py-2.5 text-sm font-semibold text-forest-700 hover:bg-cream-100 disabled:opacity-60">
+                {aiBusy === 'rewrite' ? '다듬는 중…' : '✨ AI로 다듬기'}
+              </button>
+            </div>
+            <p className="mt-1 text-[11px] text-muted">[장면 나누기]는 쓴 그대로 나누고, [AI로 다듬기]는 붙여넣은 글을 릴스용 대본으로 다시 씁니다.</p>
+            {aiError && <p className="mt-2 text-xs text-red-700">{aiError}</p>}
             {notice && <p className="mt-2 text-xs text-forest-700">{notice}</p>}
+            {undo && (
+              <button onClick={restore} className="mt-1 text-xs font-medium text-forest-500 underline">
+                ↩ AI로 바꾸기 전으로 되돌리기
+              </button>
+            )}
           </section>
 
           <section className={box}>
@@ -174,11 +244,9 @@ export default function ReelStudio() {
           <section className="rounded-2xl border border-dashed border-cream-300 p-4 text-xs leading-relaxed text-muted">
             <div className="mb-1 font-semibold text-forest-900">다음 단계에서 추가</div>
             <ul className="list-disc space-y-0.5 pl-4">
-              <li>AI 대본·장면 자동 생성, 붙여넣은 글 AI 재작성</li>
               <li>한국어 AI 목소리(속도 조절·미리 듣기)</li>
               <li>배경음악·음량·나레이션 중 자동 감소</li>
               <li>목소리와 맞춘 자동 자막</li>
-              <li>장면 AI 재생성</li>
             </ul>
           </section>
         </aside>
@@ -202,6 +270,7 @@ export default function ReelStudio() {
           <div className="mt-4 border-t border-cream-300 pt-4">
             <SceneInspector
               project={p}
+              brand={brandInfo}
               scene={scene}
               player={player}
               onChange={(patch) => patchScene(scene.id, patch)}

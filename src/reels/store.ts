@@ -16,6 +16,7 @@ export const FIRST_HINT = '주제를 입력하거나 대본을 붙여넣고\n[�
 export const freshProject = (): ReelProject => ({
   id: null,
   title: '새 릴스',
+  brandId: null,
   topic: '',
   script: '',
   duration: 15 as ReelDuration,
