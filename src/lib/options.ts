@@ -9,6 +9,7 @@ export const LANGUAGES = [
   { value: 'vi', label: '베트남어' },
   { value: 'zh', label: '중국어' },
   { value: 'ja', label: '일본어' },
+  { value: 'id', label: '인도네시아어' },
   { value: 'hi', label: '힌디어' },
 ] as const
 export type Language = (typeof LANGUAGES)[number]['value']

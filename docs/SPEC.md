@@ -265,8 +265,8 @@ PC와 모바일 모두 대응한다.
 
 ### 5-5. 스레드 ③ Hello Korean (5개 언어)
 
-- 무료 한글 학습 사이트 Hello Korean을 홍보한다. (사이트 주소는 사용자에게 확인. 기본값: hellokorean.site)
-- 언어: English / Tiếng Việt / 中文 / 日本語 / हिन्दी — 언어별로 원고 1개씩.
+- 무료 한글 학습 사이트 Hello Korean을 홍보한다. 사이트 주소 **hellokorean.site는 캡션·게시물에 반드시 넣는다**(https:// 링크, 코드로 보장 — 사용자 지시 2026-10-22).
+- 언어(사용자 지시 2026-10-22): 한국어 + English / 中文 / 日本語 / Tiếng Việt / Bahasa Indonesia — 언어별로 원고 1개씩. (원래 지시서의 힌디어는 선택지로만 남김)
 - 단순 번역이 아니라 각 언어 사용자에게 자연스러운 문장으로 쓴다.
 - 매일 다른 각도로 소개한다(예: 자모 원리, 발음, 쓰기, 학습 팁 등).
 - (원래 지시서의 이 부분 상세 규칙이 누락되어 있음. 사용자에게 추가 규칙이 있는지 확인한다.)
@@ -419,7 +419,7 @@ PC와 모바일 모두 대응한다.
   - 자료 파일: 이 기기 브라우저 저장소(IndexedDB `snsroom-reels`/`files`, 키 = 자료 id)에 원본. 사진·로고·캐릭터는 `images/{자료 id}`에도 저장(`source: 'reel'`, 투명 배경 PNG는 PNG로 크기만 줄임) → `cloud: true`. 영상은 이 기기에만 저장(사용자 결정: 무료 방식).
   - `audio` — `{ voiceOn, voice, style, speed, music('none'|'builtin'|'file'), musicFile{id,name}|null, musicVolume(0~1), ducking }`. 내 음악 파일은 이 기기 IndexedDB에만.
   - `brandId` — AI 대본에 반영할 브랜드.
-  - `caption` — 인스타그램 캡션(해시태그·사이트 링크 포함).
+  - `captions` — 언어별 인스타그램 캡션 `{ ko, en, … }`(해시태그·사이트 링크 포함).
   - 편집 내용은 1.2초 멈추면 자동 저장. 마지막으로 연 프로젝트는 다음에 릴스 화면에 들어오면 다시 열린다(localStorage `snsroom.reels.lastProject`).
 - `reelVoices/{key}` — 자동 릴스 나레이션 음성 저장(구현): `data`(mp3 base64), `createdAt`. key는 목소리·말투·속도·글의 해시. 같은 문장을 다시 만들지 않아 비용을 아낀다(이 기기 IndexedDB에도 같은 key로 저장).
 

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { brandLanguages, brandSite } from '../../shared/site'
 import PageHeader from '../components/PageHeader'
 import PostResult, { finalText, type LangResult } from '../components/PostResult'
 import ImagePicker from '../components/ImagePicker'
@@ -73,6 +74,7 @@ export default function CreatePost() {
 
   const profile = getSnsProfile(snsType)
   const brand = channels.find((c) => c.id === brandId)
+  const brandLangs = brandLanguages(brand?.name)
   // 음식 브랜드는 AI 이미지에서 실제 메뉴처럼 보이는 음식 사진을 만들지 않는다
   const foodBrand = !!brand && /음식|메뉴|덮밥|맛집|식당|요리|불백|찹찹/.test(`${brand.name} ${brand.description}`)
   const plan = brand?.plans.find((p) => p.id === planId)
@@ -89,6 +91,9 @@ export default function CreatePost() {
     setPlanId(today?.id ?? '')
     const ch = list.find((c) => c.id === id)
     if (ch?.sns && snsType === '') setSnsType(ch.sns)
+    // 번역 언어가 정해진 브랜드(Hello Korean)는 한국어 + 그 언어들을 기본으로 고른다
+    const langs = brandLanguages(ch?.name)
+    if (langs.length) setLanguages(['ko', ...langs] as Language[])
   }
 
   async function handleSaveBrand(ch: Channel) {
@@ -206,11 +211,11 @@ export default function CreatePost() {
         content,
         instructions,
         topic: plan?.topic,
-        brand: brand && { name: brand.name, siteUrl: brand.siteUrl, description: brand.description, rules: brand.rules, hashtags: brand.hashtags },
+        brand: brand && { name: brand.name, siteUrl: brandSite(brand.name, brand.siteUrl), description: brand.description, rules: brand.rules, hashtags: brand.hashtags },
       },
       channelId: brand?.id ?? null,
       brandName: brand?.name ?? '',
-      siteUrl: brand?.siteUrl ?? '',
+      siteUrl: brand ? brandSite(brand.name, brand.siteUrl) : '',
       defaultDesign: brand?.defaultDesign ?? 'simple',
       topic: plan?.topic ?? '',
       fixedHashtags: brand?.hashtags ?? [],
@@ -350,6 +355,15 @@ export default function CreatePost() {
 
           <div>
             <span className={fieldLabel}>언어<Required /></span>
+            {brandLangs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setLanguages(['ko', ...brandLangs] as Language[])}
+                className="mb-2 rounded-lg border border-forest-700 bg-white px-3 py-1.5 text-sm font-medium text-forest-700"
+              >
+                {brand?.name}: 한국어 + {brandLangs.map((l) => LANGUAGES.find((x) => x.value === l)?.label).join('·')} 모두 고르기
+              </button>
+            )}
             <div className="flex flex-wrap gap-2">
               {LANGUAGES.map((l) => {
                 const on = languages.includes(l.value)

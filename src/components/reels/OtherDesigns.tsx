@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { drawKwFrame, ensureKwFonts, KW_DESIGNS, KW_H, KW_W, sceneTimings, type KwDesignId } from '../../keyword/render'
 import { keywordScenesFrom, matchStore, sendToKeyword, sendToTteolbok, tteolbokCopyFrom } from '../../reels/handoff'
 import { drawTteolbokFrame, ensureTteolbokFonts, loadBear, TT_DESIGNS, TT_H, TT_W, type DesignId } from '../../tteolbok/render'
-import { DEFAULT_STORES, loadStores, type TteolbokStore } from '../../tteolbok/stores'
+import { useBrandStores } from '../../tteolbok/stores'
 import { estimateSeconds, makeCues, voiceTexts } from '../../tteolbok/timeline'
 import type { ReelProject } from '../../reels/types'
 
@@ -18,7 +18,7 @@ const TH = 128
  */
 export default function OtherDesigns({ project, brandName }: { project: ReelProject; brandName?: string }) {
   const navigate = useNavigate()
-  const [stores, setStores] = useState<TteolbokStore[]>(DEFAULT_STORES)
+  const stores = useBrandStores()
   const [bear, setBear] = useState<HTMLImageElement | null>(null)
   const [picked, setPicked] = useState<Pick | null>(null)
   const [busy, setBusy] = useState(false)
@@ -27,7 +27,6 @@ export default function OtherDesigns({ project, brandName }: { project: ReelProj
 
   useEffect(() => {
     loadBear().then(setBear).catch(() => undefined)
-    loadStores().then(setStores).catch(() => undefined)
   }, [])
 
   const store = matchStore(stores, brandName)

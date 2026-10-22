@@ -25,3 +25,25 @@ export function ensureSiteLink(body: string, siteUrl: string | undefined): strin
   }
   return body.replace(re, link).replace(new RegExp(`${escape(link)}(?=[^\\s/])`, 'g'), `${link} `)
 }
+
+const norm = (name: string) => name.replace(/\s/g, '').toLowerCase()
+
+/** 반드시 넣어야 하는 브랜드 사이트 — 브랜드 설정에서 주소가 비어 있어도 이 주소를 쓴다 */
+const REQUIRED_SITES: Record<string, string> = {
+  화산불백: 'bulbaek.com',
+  hellokorean: 'hellokorean.site',
+}
+
+/** 브랜드 사이트 주소 (설정값 우선, 비어 있으면 필수 주소) */
+export function brandSite(name: string | undefined, siteUrl: string | undefined) {
+  return siteUrl?.trim() || REQUIRED_SITES[norm(name ?? '')] || ''
+}
+
+/** 브랜드별 번역 언어 (Hello Korean: 영어·중국어·일본어·베트남어·인도네시아어) */
+const BRAND_LANGUAGES: Record<string, string[]> = {
+  hellokorean: ['en', 'zh', 'ja', 'vi', 'id'],
+}
+
+export function brandLanguages(name: string | undefined): string[] {
+  return BRAND_LANGUAGES[norm(name ?? '')] ?? []
+}

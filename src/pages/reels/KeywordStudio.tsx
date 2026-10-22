@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import StoreManager from '../../components/reels/StoreManager'
+import { Link } from 'react-router-dom'
 import ReelCaption from '../../components/reels/ReelCaption'
 import { generateKeywordScenes } from '../../lib/api'
 import { canShareImages } from '../../cards/export'
 import { KEYWORD_LIMITS, KEYWORD_SCENES_MAX, KEYWORD_SCENES_MIN, type KeywordScene } from '../../../shared/keyword'
 import { decodeVoiceList, fetchVoice, hasVoice, mixTrack, type Mix } from '../../tteolbok/audio'
 import { exportCanvasMp4, pickAudioCodec, type TteolbokExport } from '../../tteolbok/exporter'
-import { DEFAULT_STORES, loadStores, type TteolbokStore } from '../../tteolbok/stores'
+import { useBrandStores } from '../../tteolbok/stores'
 import { drawKwFrame, ensureKwFonts, KW_DESIGNS, KW_H, KW_W, sceneTimings, type KwDesignId, type KwFrame } from '../../keyword/render'
 
 const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
@@ -24,7 +24,7 @@ const SAMPLE: KeywordScene[] = [
 type Saved = { storeId: string; design: KwDesignId; topic: string; copyTopic: string; count: number; scenes: KeywordScene[]; voice: boolean; music: boolean; aiLabel: boolean }
 
 function loadSaved(): Saved {
-  const base: Saved = { storeId: 'hururuk', design: 'white', topic: '친구관계 더 좋아지는 비결', copyTopic: '친구관계 더 좋아지는 비결', count: 3, scenes: SAMPLE, voice: true, music: true, aiLabel: true }
+  const base: Saved = { storeId: 'bulbaek', design: 'white', topic: '친구관계 더 좋아지는 비결', copyTopic: '친구관계 더 좋아지는 비결', count: 3, scenes: SAMPLE, voice: true, music: true, aiLabel: true }
   try {
     const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null')
     return s && Array.isArray(s.scenes) ? { ...base, ...s } : base
@@ -42,7 +42,7 @@ const stamp = () => {
 /** 핵심어 타이포: 상호 선택 → 디자인(4안) → 주제 입력 → 장면별 핵심어·문장 → 음성·음악 → MP4 */
 export default function KeywordStudio() {
   const saved = useMemo(loadSaved, [])
-  const [stores, setStores] = useState<TteolbokStore[]>(DEFAULT_STORES)
+  const stores = useBrandStores()
   const [storeId, setStoreId] = useState(saved.storeId)
   const [design, setDesign] = useState<KwDesignId>(saved.design)
   const [topic, setTopic] = useState(saved.topic)
@@ -56,7 +56,6 @@ export default function KeywordStudio() {
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<(TteolbokExport & { url: string; name: string }) | null>(null)
-  const [managing, setManaging] = useState(false)
   const [playing, setPlaying] = useState(false)
   const canvas = useRef<HTMLCanvasElement>(null)
   const thumbs = useRef<Record<string, HTMLCanvasElement | null>>({})
@@ -67,9 +66,6 @@ export default function KeywordStudio() {
   const usable = scenes.filter((s) => plain(s.kw) || plain(s.sent))
 
   useEffect(() => {
-    loadStores()
-      .then(setStores)
-      .catch(() => setError('상호 목록을 불러오지 못했습니다. 기본 목록으로 표시합니다.'))
   }, [])
 
   useEffect(() => {
@@ -289,10 +285,10 @@ export default function KeywordStudio() {
       <div className="flex min-w-0 flex-col gap-4">
         <section className={box}>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className={heading + ' mb-0'}>1. 상호 (영상 하단에 처음부터 고정)</h2>
-            <button className="text-sm font-medium text-forest-500 hover:underline" onClick={() => setManaging(true)}>
-              상호 관리
-            </button>
+            <h2 className={heading + ' mb-0'}>1. 브랜드 (영상 하단에 처음부터 고정)</h2>
+            <Link to="/settings" className="text-sm font-medium text-forest-500 hover:underline">
+              브랜드 관리
+            </Link>
           </div>
           <div className="flex flex-wrap gap-2">
             {stores.map((s) => (
@@ -460,17 +456,6 @@ export default function KeywordStudio() {
         <ReelCaption brandName={store.name} topic={topic} content={usable.map((s) => `${plain(s.kw)} — ${plain(s.sent)}`).join('\n')} storageKey="snsroom.keyword.caption" />
       </aside>
 
-      {managing && (
-        <StoreManager
-          stores={stores}
-          onClose={() => setManaging(false)}
-          onSaved={(list) => {
-            setStores(list)
-            if (!list.some((s) => s.id === storeId) && list[0]) setStoreId(list[0].id)
-            setManaging(false)
-          }}
-        />
-      )}
     </div>
   )
 }

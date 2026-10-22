@@ -37,7 +37,7 @@ export const freshProject = (): ReelProject => ({
   logoId: null,
   showProgress: true,
   audio: defaultAudio(),
-  caption: '',
+  captions: {},
   missing: [],
 })
 

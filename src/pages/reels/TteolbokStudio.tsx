@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import StoreManager from '../../components/reels/StoreManager'
+import { Link } from 'react-router-dom'
 import ReelCaption from '../../components/reels/ReelCaption'
 import { generateTteolbokCopy } from '../../lib/api'
 import { canShareImages } from '../../cards/export'
@@ -7,7 +7,7 @@ import { emptyCopy, TTEOLBOK_LIMITS, type TteolbokCopy } from '../../../shared/t
 import { decodeVoices, fetchVoice, hasVoice, mixAudio, type Mix } from '../../tteolbok/audio'
 import { exportTteolbokMp4, pickAudioCodec, type TteolbokExport } from '../../tteolbok/exporter'
 import { drawTteolbokFrame, ensureTteolbokFonts, loadBear, TT_DESIGNS, TT_H, TT_W, type DesignId, type FrameInput } from '../../tteolbok/render'
-import { DEFAULT_STORES, loadStores, type TteolbokStore } from '../../tteolbok/stores'
+import { useBrandStores } from '../../tteolbok/stores'
 import { estimateSeconds, makeCues, plain, voiceTexts } from '../../tteolbok/timeline'
 
 const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
@@ -27,7 +27,7 @@ const DEFAULT_COPY: TteolbokCopy = {
 type Saved = { storeId: string; design: DesignId; topic: string; copyTopic: string; copy: TteolbokCopy; voice: boolean; music: boolean; aiLabel: boolean }
 
 function loadSaved(): Saved {
-  const base: Saved = { storeId: 'hururuk', design: 'bubble', topic: '친구관계 더 좋아지는 비결', copyTopic: '친구관계 더 좋아지는 비결', copy: DEFAULT_COPY, voice: true, music: true, aiLabel: true }
+  const base: Saved = { storeId: 'bulbaek', design: 'bubble', topic: '친구관계 더 좋아지는 비결', copyTopic: '친구관계 더 좋아지는 비결', copy: DEFAULT_COPY, voice: true, music: true, aiLabel: true }
   try {
     const s = JSON.parse(localStorage.getItem(LS_KEY) || 'null')
     return s ? { ...base, ...s, copy: { ...emptyCopy(), ...s.copy } } : base
@@ -54,7 +54,7 @@ const COPY_FIELDS: { key: keyof TteolbokCopy; label: string }[] = [
 /** 털복이 숏폼: 상호 선택 → 디자인 선택 → 주제 입력 → 문구·음성·영상 자동 생성 */
 export default function TteolbokStudio() {
   const saved = useMemo(loadSaved, [])
-  const [stores, setStores] = useState<TteolbokStore[]>(DEFAULT_STORES)
+  const stores = useBrandStores()
   const [storeId, setStoreId] = useState(saved.storeId)
   const [design, setDesign] = useState<DesignId>(saved.design)
   const [topic, setTopic] = useState(saved.topic)
@@ -68,7 +68,6 @@ export default function TteolbokStudio() {
   const [progress, setProgress] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<(TteolbokExport & { url: string; name: string }) | null>(null)
-  const [managing, setManaging] = useState(false)
   const [playing, setPlaying] = useState(false)
   const canvas = useRef<HTMLCanvasElement>(null)
   const thumbs = useRef<Record<string, HTMLCanvasElement | null>>({})
@@ -79,9 +78,6 @@ export default function TteolbokStudio() {
 
   useEffect(() => {
     loadBear().then(setBear).catch(() => setError('털복이 그림을 불러오지 못했습니다. 새로고침해 주세요.'))
-    loadStores()
-      .then(setStores)
-      .catch(() => setError('상호 목록을 불러오지 못했습니다. 기본 목록으로 표시합니다.'))
   }, [])
 
   useEffect(() => {
@@ -296,10 +292,10 @@ export default function TteolbokStudio() {
         {/* 1. 상호 */}
         <section className={box}>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className={heading + ' mb-0'}>1. 상호 (영상 하단에 처음부터 고정)</h2>
-            <button className="text-sm font-medium text-forest-500 hover:underline" onClick={() => setManaging(true)}>
-              상호 관리
-            </button>
+            <h2 className={heading + ' mb-0'}>1. 브랜드 (영상 하단에 처음부터 고정)</h2>
+            <Link to="/settings" className="text-sm font-medium text-forest-500 hover:underline">
+              브랜드 관리
+            </Link>
           </div>
           <div className="flex flex-wrap gap-2">
             {stores.map((s) => (
@@ -442,17 +438,6 @@ export default function TteolbokStudio() {
         <ReelCaption brandName={store.name} topic={topic} content={Object.values(copy).map(plain).filter(Boolean).join('\n')} storageKey="snsroom.tteolbok.caption" />
       </aside>
 
-      {managing && (
-        <StoreManager
-          stores={stores}
-          onClose={() => setManaging(false)}
-          onSaved={(list) => {
-            setStores(list)
-            if (!list.some((s) => s.id === storeId) && list[0]) setStoreId(list[0].id)
-            setManaging(false)
-          }}
-        />
-      )}
     </div>
   )
 }

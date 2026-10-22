@@ -253,7 +253,7 @@ export default function ReelStudio() {
             <p className="mt-2 text-[11px] text-muted">미리보기는 1080×1920 실제 크기로 그린 화면을 줄여 보여 줍니다. 목소리·배경음악이 켜져 있으면 함께 들립니다(넣은 영상 자체의 소리는 쓰지 않음).</p>
           </section>
           <ExportPanel project={p} player={player} />
-          <ReelCaption brandName={brand?.name} topic={p.topic} content={p.scenes.map((s) => s.text.replace(/\n/g, ' ')).join('\n')} value={p.caption} onChange={(v) => updateProject({ caption: v })} />
+          <ReelCaption brandName={brand?.name} topic={p.topic} content={p.scenes.map((s) => s.text.replace(/\n/g, ' ')).join('\n')} value={p.captions} onChange={(v) => updateProject({ captions: v })} />
         </aside>
       </div>
 

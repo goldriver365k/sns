@@ -8,6 +8,7 @@ export const LANGUAGE_NAMES: Record<string, string> = {
   zh: '中文(简体)',
   ja: '日本語',
   hi: 'हिन्दी',
+  id: 'Bahasa Indonesia',
 }
 
 export type BrandInfo = {

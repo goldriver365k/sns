@@ -78,8 +78,8 @@ export type ReelProject = {
   logoId: string | null
   showProgress: boolean
   audio: ReelAudio
-  /** 인스타그램 캡션 (해시태그·사이트 링크 포함, 복사용) */
-  caption: string
+  /** 인스타그램 캡션: 언어 코드별 (해시태그·사이트 링크 포함, 복사용) */
+  captions: Record<string, string>
   /** 이 기기에서 파일을 찾지 못한 자료(주로 다른 기기에서 넣은 영상) — [다시 넣기]로 채운다 */
   missing: ReelAssetMeta[]
 }
