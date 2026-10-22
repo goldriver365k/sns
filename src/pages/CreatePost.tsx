@@ -423,6 +423,8 @@ export default function CreatePost() {
               autoCopyNotice={autoCopyNotice}
               onEdit={handleEdit}
               onRetry={handleRetry}
+              channelId={run.channelId}
+              topic={run.topic}
               onRegenerate={handleRegenerate}
               onApprove={handleApprove}
             />

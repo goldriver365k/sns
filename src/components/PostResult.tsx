@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { CardText, GeneratedPost } from '../../shared/generate'
 import { checkReach, countChars, countLines, type SnsProfile } from '../../shared/sns'
 import { composeCopyText, pickHashtags } from '../../shared/hashtags'
@@ -36,6 +37,9 @@ type Props = {
   /** 없으면 [다시 생성] 버튼을 숨긴다 (지난 콘텐츠 화면) */
   onRegenerate?: () => void
   onApprove: () => void
+  /** 자동 릴스로 옮길 때 쓰는 브랜드 id·계획 주제 */
+  channelId?: string | null
+  topic?: string
 }
 
 const langLabel = (v: string) => LANGUAGES.find((l) => l.value === v)?.label ?? v
@@ -49,6 +53,8 @@ export default function PostResult(props: Props) {
   const { profile, languages, results, fixedHashtags, approved, saveState } = props
   const [active, setActive] = useState(languages[0])
   const [toast, setToast] = useState<string | null>(null)
+  const [toReel, setToReel] = useState(false)
+  const navigate = useNavigate()
   const timer = useRef<number | undefined>(undefined)
 
   useEffect(() => {
@@ -64,6 +70,26 @@ export default function PostResult(props: Props) {
     window.clearTimeout(timer.current)
     timer.current = window.setTimeout(() => setToast(null), 2000)
   }
+
+  /** 인스타그램 결과(카드 글·사진·언어별 캡션)를 자동 릴스 새 프로젝트로 옮기고 그 화면을 연다 */
+  async function makeReel() {
+    const posts = languages.flatMap((language) => {
+      const post = results[language]?.post
+      return results[language]?.status === 'done' && post ? [{ language, post }] : []
+    })
+    if (!posts.length) return showToast('완성된 게시물이 없습니다.')
+    setToReel(true)
+    try {
+      const { reelFromPost } = await import('../reels/fromPost')
+      await reelFromPost({ profile, posts, fixedHashtags, images: props.images, brandId: props.channelId ?? null, siteUrl: props.brand.siteUrl, topic: props.topic ?? '' })
+      navigate('/reels')
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '릴스로 옮기지 못했습니다.')
+    } finally {
+      setToReel(false)
+    }
+  }
+
 
   async function copy(text: string) {
     showToast((await copyText(text)) ? '복사되었습니다' : '복사하지 못했습니다. 글을 길게 눌러 직접 복사해 주세요.')
@@ -130,6 +156,11 @@ export default function PostResult(props: Props) {
       )}
 
       <div className="mt-6 flex flex-wrap justify-end gap-2 border-t border-cream-300 pt-4">
+        {profile.kind === 'cards' && (
+          <button onClick={makeReel} disabled={busy || toReel} className={`${btnGhost} mr-auto`} title="카드 글로 대본·장면, 사진, 캡션을 옮겨 자동 릴스 새 프로젝트를 만듭니다">
+            {toReel ? '릴스 만드는 중…' : '🎬 자동 릴스로 만들기'}
+          </button>
+        )}
         {props.onRegenerate && <button onClick={props.onRegenerate} disabled={busy} className={btnGhost}>다시 생성</button>}
         <button onClick={props.onApprove} disabled={busy || approved} className={btnPrimary}>
           {approved ? '승인됨' : '승인'}

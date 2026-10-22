@@ -95,6 +95,8 @@ export default function ContentItem({ item, channels, onDeleted }: { item: Store
             autoCopyNotice={null}
             onEdit={edit}
             onApprove={approve}
+            channelId={item.channelId}
+            topic={item.topic}
           />
           {imagesLoading && <p className="mt-2 text-xs text-muted">사진 불러오는 중…</p>}
           {imageError && <p className="mt-2 text-xs text-red-700">{imageError}</p>}
