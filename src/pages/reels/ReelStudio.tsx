@@ -5,6 +5,7 @@ import SceneInspector from '../../components/reels/SceneInspector'
 import AssetPanel from '../../components/reels/AssetPanel'
 import ExportPanel from '../../components/reels/ExportPanel'
 import SoundPanel from '../../components/reels/SoundPanel'
+import OtherDesigns from '../../components/reels/OtherDesigns'
 import { useReelAudio } from '../../reels/previewAudio'
 import { blankScene, getProject, newSceneId, updateProject, useReelProject } from '../../reels/store'
 import { useReelPlayer } from '../../reels/player'
@@ -180,6 +181,7 @@ export default function ReelStudio() {
 
           <section className={box}>
             <h2 className={heading}>디자인</h2>
+            <div className="mb-1 text-[11px] font-medium text-muted">사진 릴스 (지금 화면)</div>
             <div className="grid grid-cols-5 gap-1">
               {REEL_TEMPLATES.map((t) => (
                 <button key={t.id} onClick={() => updateProject({ template: t.id })} aria-pressed={p.template === t.id} title={t.description} className={`rounded-lg border px-1 py-2 text-xs ${p.template === t.id ? 'border-forest-700 bg-forest-700 text-cream-50' : 'border-cream-300 bg-white'}`}>
@@ -191,6 +193,7 @@ export default function ReelStudio() {
               <input type="checkbox" checked={p.showProgress} onChange={(e) => updateProject({ showProgress: e.target.checked })} className="accent-forest-700" />
               아래 진행 막대 표시
             </label>
+            <OtherDesigns project={p} brandName={brand?.name} />
           </section>
 
           <section className={box}>
