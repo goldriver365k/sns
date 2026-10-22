@@ -1,3 +1,4 @@
+import { bareDomain, ensureSiteLink } from '../../shared/site'
 import type { GenerateRequest, GeneratedPost } from '../../shared/generate'
 import { LANGUAGE_NAMES } from '../../shared/generate'
 import type { SnsProfile } from '../../shared/sns'
@@ -78,7 +79,7 @@ export function buildMessages(req: GenerateRequest, profile: SnsProfile) {
       lines.push(
         profile.noLinks
           ? `사이트 주소 ${bareDomain(b.siteUrl)}를 본문 끝에 https:// 없이 도메인 글자로 반드시 넣는다.`
-          : `사이트 주소 ${b.siteUrl}를 본문에 반드시 넣는다.`,
+          : `사이트 주소를 링크 https://${bareDomain(b.siteUrl)} 형태로 본문에 반드시 넣는다(앞뒤는 띄어 쓴다).`,
       )
     }
   }
@@ -105,9 +106,7 @@ export function buildMessages(req: GenerateRequest, profile: SnsProfile) {
   ]
 }
 
-export function bareDomain(url: string) {
-  return url.replace(/^https?:\/\//i, '').replace(/\/$/, '')
-}
+export { bareDomain }
 
 /** 생성 결과를 정리하고, 반드시 들어가야 하는 것(사이트 주소 등)을 코드로 한 번 더 보장한다. */
 export function finalizePost(raw: GeneratedPost, req: GenerateRequest, profile: SnsProfile): GeneratedPost {
@@ -143,6 +142,9 @@ export function finalizePost(raw: GeneratedPost, req: GenerateRequest, profile: 
   } else if (site && !body.toLowerCase().includes(site.toLowerCase())) {
     body = `${body}\n\n${site}`
   }
+
+  // 링크를 쓸 수 있는 SNS는 사이트 주소를 https:// 링크로 (예: https://bulbaek.com)
+  if (site && !profile.noLinks) body = ensureSiteLink(body, site)
 
   const fixed = new Set((req.brand?.hashtags ?? []).map((t) => t.toLowerCase()))
   tags = tags.filter((t) => !fixed.has(t.toLowerCase()))

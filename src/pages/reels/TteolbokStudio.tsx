@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StoreManager from '../../components/reels/StoreManager'
+import ReelCaption from '../../components/reels/ReelCaption'
 import { generateTteolbokCopy } from '../../lib/api'
 import { canShareImages } from '../../cards/export'
 import { emptyCopy, TTEOLBOK_LIMITS, type TteolbokCopy } from '../../../shared/tteolbok'
@@ -438,6 +439,7 @@ export default function TteolbokStudio() {
             </div>
           )}
         </div>
+        <ReelCaption brandName={store.name} topic={topic} content={Object.values(copy).map(plain).filter(Boolean).join('\n')} storageKey="snsroom.tteolbok.caption" />
       </aside>
 
       {managing && (

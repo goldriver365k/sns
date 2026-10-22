@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import StoreManager from '../../components/reels/StoreManager'
+import ReelCaption from '../../components/reels/ReelCaption'
 import { generateKeywordScenes } from '../../lib/api'
 import { canShareImages } from '../../cards/export'
 import { KEYWORD_LIMITS, KEYWORD_SCENES_MAX, KEYWORD_SCENES_MIN, type KeywordScene } from '../../../shared/keyword'
@@ -456,6 +457,7 @@ export default function KeywordStudio() {
             </div>
           )}
         </div>
+        <ReelCaption brandName={store.name} topic={topic} content={usable.map((s) => `${plain(s.kw)} — ${plain(s.sent)}`).join('\n')} storageKey="snsroom.keyword.caption" />
       </aside>
 
       {managing && (
