@@ -1,6 +1,6 @@
 import { getTemplate, type ReelTemplate } from './templates'
 import { sceneTimes } from './store'
-import type { ReelAsset, ReelProject, ReelScene } from './types'
+import type { ReelAsset, ReelProject, ReelScene, ReelTextFont } from './types'
 
 /** 릴스 크기 (세로 9:16) */
 export const REEL_W = 1080
@@ -10,7 +10,7 @@ export const REEL_H = 1920
  * 릴스의 t초 화면 한 장을 그린다.
  * 시간만으로 화면이 정해지는 함수라, 미리보기와 나중의 MP4 제작이 같은 그림을 만든다.
  */
-export function drawReelFrame(ctx: CanvasRenderingContext2D, p: ReelProject, t: number) {
+export function drawReelFrame(ctx: CanvasRenderingContext2D, p: ReelProject, t: number, opts: { highlight?: string | null } = {}) {
   const tpl = getTemplate(p.template)
   const times = sceneTimes(p)
   let i = times.findIndex((x) => t >= x.start && t < x.start + x.len)
@@ -42,6 +42,7 @@ export function drawReelFrame(ctx: CanvasRenderingContext2D, p: ReelProject, t: 
 
   const logo = p.logoId ? assets.get(p.logoId) : undefined
   if (logo) drawLogo(ctx, logo, t)
+  drawTexts(ctx, p, scene?.id ?? null, opts.highlight ?? null)
   // AI 음성을 쓰면 듣는 사람에게 알린다(OpenAI 음성 이용 조건)
   if (p.audio?.voiceOn) drawAiVoiceBadge(ctx)
   if (p.showProgress) {
@@ -52,6 +53,82 @@ export function drawReelFrame(ctx: CanvasRenderingContext2D, p: ReelProject, t: 
   }
   ctx.restore()
   return { sceneIndex: i, sceneStart: start, sceneLength: len }
+}
+
+// ── 더 넣은 글자 ─────────────────────────────────────────
+
+export const REEL_TEXT_FONTS: Record<ReelTextFont, { label: string; family: string; weight: number }> = {
+  gothic: { label: '굵은 고딕', family: 'Pretendard Variable', weight: 800 },
+  jua: { label: '주아체', family: 'Jua', weight: 400 },
+  myeongjo: { label: '명조', family: 'ACM MaruBuri', weight: 700 },
+  round: { label: '둥근 글씨', family: 'ACM Cafe24 SsurroundAir', weight: 400 },
+}
+
+/** 마지막으로 그린 글자 상자(캔버스 좌표) — 미리보기에서 눌러 고르고 끌어 옮길 때 쓴다 */
+export const lastTextBoxes = new Map<string, { x: number; y: number; w: number; h: number }>()
+
+/** 밝은 글자색인지 (테두리·상자 색을 정할 때) */
+function isLight(hex: string) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+  if (!m) return true
+  const n = parseInt(m[1], 16)
+  return ((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114 > 150
+}
+
+function drawTexts(ctx: CanvasRenderingContext2D, p: ReelProject, sceneId: string | null, highlight: string | null) {
+  lastTextBoxes.clear()
+  for (const tx of p.texts ?? []) {
+    if (tx.sceneId && tx.sceneId !== sceneId) continue
+    const lines = tx.text.split('\n').map((l) => l.trimEnd())
+    if (!lines.some((l) => l.trim())) continue
+    const f = REEL_TEXT_FONTS[tx.font] ?? REEL_TEXT_FONTS.gothic
+    ctx.save()
+    ctx.font = `${f.weight} ${tx.size}px "${f.family}"`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    const lh = tx.size * 1.22
+    const w = Math.max(...lines.map((l) => ctx.measureText(l).width))
+    const h = lh * lines.length
+    const cx = tx.x * REEL_W
+    const cy = tx.y * REEL_H
+    const top = cy - h / 2
+    const light = isLight(tx.color)
+    if (tx.style === 'box') {
+      const pad = tx.size * 0.35
+      ctx.fillStyle = light ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.88)'
+      ctx.beginPath()
+      ctx.roundRect(cx - w / 2 - pad, top - pad * 0.6, w + pad * 2, h + pad * 1.2, Math.min(28, tx.size * 0.3))
+      ctx.fill()
+    }
+    lines.forEach((l, i) => {
+      const y = top + lh * (i + 0.5)
+      if (tx.style === 'outline') {
+        ctx.lineJoin = 'round'
+        ctx.lineWidth = Math.max(4, tx.size * 0.14)
+        ctx.strokeStyle = light ? '#111111' : '#FFFFFF'
+        ctx.strokeText(l, cx, y)
+      }
+      if (tx.style === 'shadow') {
+        ctx.shadowColor = light ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.6)'
+        ctx.shadowBlur = tx.size * 0.25
+        ctx.shadowOffsetY = tx.size * 0.05
+      }
+      ctx.fillStyle = tx.color
+      ctx.fillText(l, cx, y)
+    })
+    ctx.restore()
+    const box = { x: cx - w / 2 - 16, y: top - 12, w: w + 32, h: h + 24 }
+    lastTextBoxes.set(tx.id, box)
+    if (highlight === tx.id) {
+      // 편집 중 표시 (미리보기에서만, MP4에는 그리지 않음)
+      ctx.save()
+      ctx.setLineDash([16, 10])
+      ctx.lineWidth = 5
+      ctx.strokeStyle = '#2F7DF6'
+      ctx.strokeRect(box.x, box.y, box.w, box.h)
+      ctx.restore()
+    }
+  }
 }
 
 function drawAiVoiceBadge(ctx: CanvasRenderingContext2D) {
@@ -457,13 +534,14 @@ function cta(ctx: CanvasRenderingContext2D, tpl: ReelTemplate, text: string, loc
 /** 미리보기 전에 템플릿·효과에 쓰는 폰트를 실제 글자로 내려받는다 */
 export async function ensureReelFonts(p: ReelProject) {
   const tpl = getTemplate(p.template)
-  const sample = p.scenes.map((s) => s.text + s.priceText + s.ctaText).join('') + p.title + '0123456789'
+  const sample = p.scenes.map((s) => s.text + s.priceText + s.ctaText).join('') + p.title + (p.texts ?? []).map((x) => x.text).join('') + '0123456789'
   const specs = [
     `${tpl.sub.weight} 40px "${tpl.sub.family}"`,
     '900 40px "Pretendard Variable"',
     '800 40px "Pretendard Variable"',
     '700 40px "Pretendard Variable"',
     '400 40px "ACM MaruBuri"',
+    ...Object.values(REEL_TEXT_FONTS).map((f) => `${f.weight} 40px "${f.family}"`),
   ]
   try {
     await Promise.all(specs.map((f) => document.fonts.load(f, sample || '가나다')))

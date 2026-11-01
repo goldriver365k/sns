@@ -5,6 +5,7 @@ import SceneInspector from '../../components/reels/SceneInspector'
 import AssetPanel from '../../components/reels/AssetPanel'
 import ExportPanel from '../../components/reels/ExportPanel'
 import SoundPanel from '../../components/reels/SoundPanel'
+import TextPanel, { patchText } from '../../components/reels/TextPanel'
 import OtherDesigns from '../../components/reels/OtherDesigns'
 import ReelCaption from '../../components/reels/ReelCaption'
 import { useReelAudio } from '../../reels/previewAudio'
@@ -36,6 +37,19 @@ export default function ReelStudio() {
   const media = p.assets.filter((a) => a.kind === 'media')
   const { loading } = useSaveStatus()
   const [insertMode, setInsertMode] = useState<InsertMode>('replace')
+  const [selectedText, setSelectedText] = useState<string | null>(null)
+  const sceneIndex = scene ? p.scenes.findIndex((s) => s.id === scene.id) : 0
+
+  /** 선택한 장면이 미리보기에 보이게 (지금 시간이 그 장면 밖이면 옮김) */
+  function showScene() {
+    const t = sceneTimes(p)[sceneIndex]
+    if (!t) return
+    const now = player.timeRef.current
+    if (now < t.start || now >= t.start + t.len) {
+      player.setRange(null)
+      player.seek(t.start + Math.min(0.3, t.len / 2))
+    }
+  }
   // 붙여넣기는 언제 일어날지 몰라 항상 "지금" 선택한 장면·방식을 참조로 읽는다
   const targetRef = useRef<string | null>(null)
   const modeRef = useRef<InsertMode>('replace')
@@ -68,7 +82,7 @@ export default function ReelStudio() {
   const [aiBusy, setAiBusy] = useState<'topic' | 'rewrite' | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
   /** AI로 바꾸기 전 상태 — [되돌리기]용 */
-  const [undo, setUndo] = useState<Pick<ReelProject, 'title' | 'script' | 'scenes'> | null>(null)
+  const [undo, setUndo] = useState<Pick<ReelProject, 'title' | 'script' | 'scenes' | 'texts'> | null>(null)
   const brand = channels.find((c) => c.id === p.brandId) ?? null
   const brandInfo: ReelScriptBrand | null = brand ? { name: brand.name, siteUrl: brand.siteUrl, description: brand.description, rules: brand.rules } : null
   const aiLabel = loadAiSettings().provider === 'local' ? '로컬 AI' : '서버 AI'
@@ -82,10 +96,11 @@ export default function ReelStudio() {
     try {
       const r = await runReelScript({ mode, topic: p.topic, source: p.script, duration: p.duration, brand: brandInfo, language: p.language })
       const cur = getProject()
-      setUndo({ title: cur.title, script: cur.script, scenes: cur.scenes })
+      setUndo({ title: cur.title, script: cur.script, scenes: cur.scenes, texts: cur.texts })
       const scenes = scenesFromAi(r.scenes, cur.assets.filter((a) => a.kind === 'media'))
       updateProject({
         scenes,
+        texts: cur.texts.filter((x) => !x.sceneId),
         script: r.scenes.map((x) => x.text.replace(/\n/g, ' ')).join('\n'),
         title: !cur.title.trim() || cur.title === '새 릴스' ? r.title || cur.title : cur.title,
       })
@@ -133,7 +148,8 @@ export default function ReelStudio() {
       setNotice('대본을 먼저 입력해 주세요.')
       return
     }
-    updateProject({ scenes })
+    // 장면이 새로 바뀌므로 전에 장면별로 넣은 글자는 정리 (모든 장면 글자는 유지)
+    updateProject((cur) => ({ scenes, texts: cur.texts.filter((x) => !x.sceneId) }))
     setSelected(scenes[0].id)
     player.setRange(null)
     player.seek(0)
@@ -256,7 +272,11 @@ export default function ReelStudio() {
         {/* 가운데: 미리보기 */}
         <section className="order-1 flex flex-col items-center lg:order-2">
           <div className="relative w-full max-w-[260px] sm:max-w-[380px]">
-            <ReelPreview project={p} player={player} />
+            <ReelPreview
+              project={p}
+              player={player}
+              textEdit={{ selected: selectedText, onPick: setSelectedText, onMove: (id, x, y) => patchText(id, { x, y }) }}
+            />
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/55 text-sm font-medium text-white">프로젝트를 불러오는 중…</div>
             )}
@@ -285,6 +305,7 @@ export default function ReelStudio() {
             {player.range && <p className="mt-2 text-xs text-forest-700">선택한 장면만 반복 재생 중</p>}
             <p className="mt-2 text-[11px] text-muted">미리보기는 1080×1920 실제 크기로 그린 화면을 줄여 보여 줍니다. 목소리·배경음악이 켜져 있으면 함께 들립니다(넣은 영상 자체의 소리는 쓰지 않음).</p>
           </section>
+          <TextPanel project={p} scene={scene ?? null} sceneIndex={sceneIndex} selected={selectedText} onSelect={setSelectedText} onShowScene={showScene} />
           <ExportPanel project={p} player={player} />
           <ReelCaption brandName={brand?.name} topic={p.topic} content={p.scenes.map((s) => s.text.replace(/\n/g, ' ')).join('\n')} value={p.captions} onChange={(v) => updateProject({ captions: v })} />
         </aside>
@@ -330,13 +351,15 @@ export default function ReelStudio() {
                 updateProject((cur) => {
                   const list = [...cur.scenes]
                   list.splice(i + 1, 0, copy)
-                  return { scenes: list }
+                  // 이 장면에 넣은 글자도 함께 복제
+                  const texts = cur.texts.filter((x) => x.sceneId === scene.id).map((x) => ({ ...x, id: newSceneId(), sceneId: copy.id }))
+                  return { scenes: list, texts: [...cur.texts, ...texts] }
                 })
                 setSelected(copy.id)
               }}
               onDelete={() => {
                 const i = p.scenes.findIndex((s) => s.id === scene.id)
-                updateProject((cur) => ({ scenes: cur.scenes.filter((s) => s.id !== scene.id) }))
+                updateProject((cur) => ({ scenes: cur.scenes.filter((s) => s.id !== scene.id), texts: cur.texts.filter((x) => x.sceneId !== scene.id) }))
                 setSelected(p.scenes[i + 1]?.id ?? p.scenes[i - 1]?.id ?? null)
                 player.setRange(null)
               }}

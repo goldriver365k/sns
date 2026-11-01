@@ -60,6 +60,23 @@ export type ReelAudio = {
   ducking: boolean
 }
 
+export type ReelTextFont = 'gothic' | 'jua' | 'myeongjo' | 'round'
+export type ReelTextStyle = 'shadow' | 'outline' | 'box'
+
+/** 영상 위에 더 넣는 글자 (자막과 별도). 위치는 화면 비율(0~1)의 글자 가운데, 크기는 1080×1920 기준 px */
+export type ReelText = {
+  id: string
+  /** 보일 장면 — null이면 영상 전체 */
+  sceneId: string | null
+  text: string
+  x: number
+  y: number
+  size: number
+  color: string
+  font: ReelTextFont
+  style: ReelTextStyle
+}
+
 /** 저장용 자료 정보 (파일 자체는 따로 저장) */
 export type ReelAssetMeta = Pick<ReelAsset, 'id' | 'kind' | 'type' | 'name' | 'width' | 'height' | 'duration' | 'keyModel' | 'cloud'>
 
@@ -80,6 +97,8 @@ export type ReelProject = {
   logoId: string | null
   showProgress: boolean
   audio: ReelAudio
+  /** 영상 위에 더 넣은 글자 */
+  texts: ReelText[]
   /** 인스타그램 캡션: 언어 코드별 (해시태그·사이트 링크 포함, 복사용) */
   captions: Record<string, string>
   /** 이 기기에서 파일을 찾지 못한 자료(주로 다른 기기에서 넣은 영상) — [다시 넣기]로 채운다 */

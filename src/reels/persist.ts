@@ -92,6 +92,7 @@ function toDoc(p: ReelProject): Omit<ReelDoc, 'thumbnail'> {
     logoId: p.logoId,
     showProgress: p.showProgress,
     audio: p.audio,
+    texts: p.texts,
     captions: p.captions,
     // 이 기기에 없는 자료도 정보는 남겨 둔다(다른 기기에서는 있을 수 있음)
     assets: [...p.assets.map(toMeta), ...p.missing],
@@ -280,6 +281,7 @@ export async function openProject(id: string) {
       logoId: d.logoId ?? null,
       showProgress: d.showProgress ?? true,
       audio: { ...defaultAudio(), ...(d.audio ?? {}) },
+      texts: d.texts ?? [],
       captions: d.captions ?? ((d as { caption?: string }).caption ? { ko: (d as { caption?: string }).caption! } : {}),
       assets,
       missing,
