@@ -1,20 +1,27 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MutableRefObject } from 'react'
 import { loadAsset, releaseAsset } from '../../reels/assets'
 import { forgetAssetFiles } from '../../reels/persist'
 import { updateProject } from '../../reels/store'
+import type { InsertMode } from '../../reels/insert'
 import type { AssetKind, ReelAsset, ReelAssetMeta, ReelProject } from '../../reels/types'
 
 type Props = {
   project: ReelProject
   onAdd: (assets: ReelAsset[]) => void
   onChange: (patch: Partial<ReelProject>) => void
+  /** 새 사진·영상이 들어갈 장면(지금 선택한 장면) */
+  target: { index: number; hasMedia: boolean } | null
+  mode: InsertMode
+  onModeChange: (m: InsertMode) => void
+  /** 타임라인의 [넣기] 버튼이 사진·영상 파일 선택 창을 열 수 있게 */
+  pickRef?: MutableRefObject<(() => void) | null>
 }
 
 const KIND_LABEL: Record<AssetKind, string> = { media: '사진·영상', logo: '로고', character: '캐릭터' }
 const MAX_ASSETS = 30
 
 /** 자료 넣기: 파일 선택·끌어다 놓기·붙여넣기(Ctrl+V). 사진·영상 / 로고 / 캐릭터 */
-export default function AssetPanel({ project, onAdd, onChange }: Props) {
+export default function AssetPanel({ project, onAdd, onChange, target, mode, onModeChange, pickRef }: Props) {
   const inputs = { media: useRef<HTMLInputElement>(null), logo: useRef<HTMLInputElement>(null), character: useRef<HTMLInputElement>(null) }
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -23,6 +30,10 @@ export default function AssetPanel({ project, onAdd, onChange }: Props) {
   const [reattaching, setReattaching] = useState<ReelAssetMeta | null>(null)
   const countRef = useRef(project.assets.length)
   countRef.current = project.assets.length
+  // 붙여넣기 감지는 처음 한 번만 등록하므로, 항상 최신 onAdd(지금 선택한 장면)를 쓰도록 참조로 둔다
+  const onAddRef = useRef(onAdd)
+  onAddRef.current = onAdd
+  if (pickRef) pickRef.current = () => inputs.media.current?.click()
 
   async function add(files: File[], kind: AssetKind) {
     setError(null)
@@ -40,7 +51,7 @@ export default function AssetPanel({ project, onAdd, onChange }: Props) {
       }
     }
     setBusy(false)
-    if (added.length) onAdd(added)
+    if (added.length) onAddRef.current(added)
   }
 
   // 화면 어디서든 붙여넣은 사진·영상은 사진·영상 자료로 추가 (글자 붙여넣기는 그대로)
@@ -87,6 +98,33 @@ export default function AssetPanel({ project, onAdd, onChange }: Props) {
 
   return (
     <div>
+      <div className="mb-2 rounded-xl border border-forest-700 bg-white p-2.5 text-xs" aria-live="polite">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="font-semibold text-forest-900">새 사진·영상 →</span>
+          {target ? (
+            <span className="rounded-md bg-forest-700 px-2 py-0.5 font-bold text-cream-50">장면 {target.index + 1}</span>
+          ) : (
+            <span className="text-muted">장면 없음</span>
+          )}
+          <div className="ml-auto flex overflow-hidden rounded-lg border border-cream-300" role="group" aria-label="넣는 방식">
+            {(
+              [
+                ['replace', target?.hasMedia ? '교체' : '넣기'],
+                ['library', '자료에만'],
+              ] as const
+            ).map(([m, text]) => (
+              <button key={m} onClick={() => onModeChange(m)} aria-pressed={mode === m} className={`px-2.5 py-1 ${mode === m ? 'bg-forest-700 text-cream-50' : 'bg-white'}`}>
+                {text}
+              </button>
+            ))}
+          </div>
+        </div>
+        <p className="mt-1 text-[11px] leading-snug text-muted">
+          {mode === 'library' || !target
+            ? '붙여넣거나 추가한 사진·영상은 아래 자료 목록에만 들어갑니다. 장면에는 장면 설정에서 골라 넣으세요.'
+            : `붙여넣기(Ctrl+V)·추가하면 장면 ${target.index + 1}에 ${target.hasMedia ? '지금 사진을 바꿔' : ''} 넣습니다. 여러 장이면 장면 ${target.index + 1}부터 차례로 넣습니다. 다른 장면은 아래 타임라인에서 고르거나 [넣기]를 누르세요.`}
+        </p>
+      </div>
       <div
         onDragOver={(e) => {
           e.preventDefault()

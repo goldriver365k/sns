@@ -8,7 +8,8 @@ import SoundPanel from '../../components/reels/SoundPanel'
 import OtherDesigns from '../../components/reels/OtherDesigns'
 import ReelCaption from '../../components/reels/ReelCaption'
 import { useReelAudio } from '../../reels/previewAudio'
-import { blankScene, getProject, newSceneId, updateProject, useReelProject } from '../../reels/store'
+import { blankScene, getProject, newSceneId, sceneTimes, updateProject, useReelProject } from '../../reels/store'
+import { placeAssets, type InsertMode } from '../../reels/insert'
 import { useReelPlayer } from '../../reels/player'
 import { useSaveStatus } from '../../reels/persist'
 import { maxScenesFor, scenesFromAi, splitScript } from '../../reels/storyboard'
@@ -17,7 +18,7 @@ import { useChannels } from '../../lib/channels'
 import { LANGUAGES } from '../../lib/options'
 import type { ReelScriptBrand } from '../../../shared/reelScript'
 import { REEL_TEMPLATES } from '../../reels/templates'
-import type { ReelDuration, ReelProject, ReelScene } from '../../reels/types'
+import type { ReelAsset, ReelDuration, ReelProject, ReelScene } from '../../reels/types'
 
 const DURATIONS: ReelDuration[] = [10, 15, 30, 60]
 const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
@@ -34,6 +35,35 @@ export default function ReelStudio() {
   const scene = p.scenes.find((s) => s.id === selected) ?? p.scenes[0]
   const media = p.assets.filter((a) => a.kind === 'media')
   const { loading } = useSaveStatus()
+  const [insertMode, setInsertMode] = useState<InsertMode>('replace')
+  // 붙여넣기는 언제 일어날지 몰라 항상 "지금" 선택한 장면·방식을 참조로 읽는다
+  const targetRef = useRef<string | null>(null)
+  const modeRef = useRef<InsertMode>('replace')
+  targetRef.current = scene?.id ?? null
+  modeRef.current = insertMode
+  const pickMedia = useRef<(() => void) | null>(null)
+
+  /** 새 자료 넣기: 선택한 장면에 넣고(있으면 교체), 선택한 장면은 그대로 둔다 */
+  function addAssets(added: ReelAsset[]) {
+    const target = targetRef.current
+    const mode = modeRef.current
+    let placed: { index: number; replaced: boolean }[] = []
+    updateProject((cur) => {
+      const r = placeAssets(cur, added, target, mode)
+      placed = r.placed
+      return r.patch
+    })
+    if (import.meta.env.DEV) console.debug(`[릴스] 자료 넣기 — 선택 장면 ${getProject().scenes.findIndex((s) => s.id === target) + 1}, 넣은 장면 ${placed.map((x) => x.index + 1).join(',') || '없음'}, 방식 ${mode}`)
+    if (placed.length) {
+      const cur = getProject()
+      const t = sceneTimes(cur)[placed[0].index]
+      // 넣은 장면을 미리보기에 보여 준다 (선택은 바꾸지 않음)
+      player.setRange(null)
+      if (t) player.seek(t.start + Math.min(0.3, t.len / 2))
+      const nums = placed.map((x) => x.index + 1).join('·')
+      setNotice(`장면 ${nums}에 사진·영상을 ${placed.some((x) => x.replaced) ? '바꿔 ' : ''}넣었습니다.${added.filter((a) => a.kind === 'media').length > placed.length ? ' 남은 것은 자료 목록에 있습니다.' : ''}`)
+    } else if (added.some((a) => a.kind === 'media')) setNotice('사진·영상을 자료 목록에 넣었습니다. 장면 설정에서 골라 넣을 수 있습니다.')
+  }
   const { channels } = useChannels()
   const [aiBusy, setAiBusy] = useState<'topic' | 'rewrite' | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
@@ -214,15 +244,11 @@ export default function ReelStudio() {
             <AssetPanel
               project={p}
               onChange={updateProject}
-              onAdd={(added) =>
-                updateProject((cur) => {
-                  // 사진이 없는 장면부터 새 사진·영상을 채워 준다
-                  const queue = added.filter((a) => a.kind === 'media')
-                  const scenes = cur.scenes.map((s) => (!s.assetId && queue.length ? { ...s, assetId: queue.shift()!.id } : s))
-                  const logo = added.find((a) => a.kind === 'logo')
-                  return { assets: [...cur.assets, ...added], scenes, logoId: logo ? logo.id : cur.logoId }
-                })
-              }
+              onAdd={addAssets}
+              target={scene ? { index: p.scenes.findIndex((s) => s.id === scene.id), hasMedia: !!scene.assetId } : null}
+              mode={insertMode}
+              onModeChange={setInsertMode}
+              pickRef={pickMedia}
             />
           </section>
         </aside>
@@ -272,6 +298,14 @@ export default function ReelStudio() {
           selected={scene?.id ?? null}
           onSelect={setSelected}
           onReorder={move}
+          onInsert={(id) => {
+            // 이 장면을 고르고 바로 파일 선택 창을 연다 (넣는 방식은 교체/넣기)
+            setSelected(id)
+            targetRef.current = id
+            setInsertMode('replace')
+            modeRef.current = 'replace'
+            pickMedia.current?.()
+          }}
           onAdd={() => {
             const s = { ...blankScene('새 장면 자막'), assetId: media[p.scenes.length % Math.max(1, media.length)]?.id ?? null }
             updateProject((cur) => ({ scenes: [...cur.scenes, s] }))

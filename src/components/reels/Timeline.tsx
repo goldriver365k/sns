@@ -10,12 +10,14 @@ type Props = {
   onSelect: (id: string) => void
   onReorder: (from: number, to: number) => void
   onAdd: () => void
+  /** 이 장면을 고르고 사진·영상 파일 선택 창 열기 */
+  onInsert: (id: string) => void
 }
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}.${Math.floor((s % 1) * 10)}`
 
 /** 장면별 타임라인: 길이 비율대로 칸이 나뉘고, 누르면 그 장면으로 이동, 끌어서 순서 변경 */
-export default function Timeline({ project, player, selected, onSelect, onReorder, onAdd }: Props) {
+export default function Timeline({ project, player, selected, onSelect, onReorder, onAdd, onInsert }: Props) {
   const times = sceneTimes(project)
   const [dragFrom, setDragFrom] = useState<number | null>(null)
   const assets = new Map(project.assets.map((a) => [a.id, a]))
@@ -34,8 +36,12 @@ export default function Timeline({ project, player, selected, onSelect, onReorde
             const a = s.assetId ? assets.get(s.assetId) : undefined
             const on = selected === s.id
             return (
-              <button
+              <div
                 key={s.id}
+                style={{ flexGrow: s.weight, flexBasis: 0 }}
+                className={`relative h-24 min-w-14 overflow-hidden rounded-lg border-2 transition ${on ? 'border-forest-700 ring-2 ring-forest-500 ring-offset-1' : 'border-cream-300 hover:border-forest-500'} ${dragFrom === i ? 'opacity-50' : ''}`}
+              >
+              <button
                 draggable
                 onDragStart={() => setDragFrom(i)}
                 onDragOver={(e) => e.preventDefault()}
@@ -49,9 +55,9 @@ export default function Timeline({ project, player, selected, onSelect, onReorde
                   // 장면이 바뀌며 나타나는 0.25초를 지난 화면에서 멈춘다
                   player.seek(times[i].start + Math.min(0.3, times[i].len / 2))
                 }}
-                style={{ flexGrow: s.weight, flexBasis: 0 }}
-                className={`relative h-24 min-w-14 overflow-hidden rounded-lg border-2 text-left transition ${on ? 'border-forest-700' : 'border-cream-300 hover:border-forest-500'} ${dragFrom === i ? 'opacity-50' : ''}`}
+                className="absolute inset-0 text-left"
                 aria-label={`장면 ${i + 1}`}
+                aria-pressed={on}
                 title="누르면 이 장면으로 이동, 끌어서 순서를 바꿉니다"
               >
                 {a ? (
@@ -62,7 +68,17 @@ export default function Timeline({ project, player, selected, onSelect, onReorde
                 <span className="relative block px-1.5 pt-1 text-[11px] font-bold text-forest-900">{i + 1} · {times[i].len.toFixed(1)}초</span>
                 <span className="relative line-clamp-2 px-1.5 text-[11px] leading-tight text-ink">{s.text || '(자막 없음)'}</span>
                 {s.effects.length > 0 && <span className="absolute right-1 bottom-1 rounded bg-forest-700 px-1 text-[10px] text-cream-50">효과 {s.effects.length}</span>}
+                {on && <span className="absolute bottom-1 left-1 rounded bg-forest-700 px-1 text-[10px] font-semibold text-cream-50">선택됨</span>}
               </button>
+              <button
+                onClick={() => onInsert(s.id)}
+                className="absolute top-1 right-1 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-semibold text-forest-700 shadow-sm hover:bg-white"
+                aria-label={`장면 ${i + 1}에 사진·영상 ${a ? '교체' : '넣기'}`}
+                title={a ? '이 장면 사진·영상 바꾸기' : '이 장면에 사진·영상 넣기'}
+              >
+                🖼 {a ? '교체' : '넣기'}
+              </button>
+              </div>
             )
           })}
           {/* 재생 위치 */}
