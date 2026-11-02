@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import AiBgPanel, { MAX_AI_BACKGROUNDS, type AiBackground } from '../components/AiBgPanel'
+import PhotoReelDialog, { type PhotoReelInput } from '../components/PhotoReelDialog'
 import { btnGhost, btnLink, btnPrimary, fieldLabel } from '../components/ui'
 import { prepareImage, type PickedImage } from '../lib/images'
 import { canvasToPng, canShareImages, downloadPng, downloadZip, saveToGallery } from '../cards/export'
-import { BG_COLORS, composePhoto, DEFAULT_SETTINGS, SIZES, type BgKind, type PhotoSettings, type ShadowKind } from '../photo/compose'
+import { BG_COLORS, composePhoto, DEFAULT_SETTINGS, SIZES, type BgKind, type PhotoSettings, type PhotoSource, type ShadowKind } from '../photo/compose'
 import { isModelReady, loadRemover, removeBackground, type Cutout, type ModelProgress } from '../photo/removeBg'
 
 /** 한 번에 다룰 수 있는 사진 수 */
@@ -23,6 +26,7 @@ const BG_KINDS: { value: BgKind; label: string }[] = [
   { value: 'studio', label: '스튜디오' },
   { value: 'blur', label: '원본 흐리게' },
   { value: 'transparent', label: '투명' },
+  { value: 'ai', label: '✨ AI 배경' },
 ]
 
 const SHADOWS: { value: ShadowKind; label: string }[] = [
@@ -58,6 +62,15 @@ export default function PhotoStudio() {
   const itemsRef = useRef(items)
   itemsRef.current = items
   const busy = useRef(false)
+  const navigate = useNavigate()
+  // AI 배경: 이번 작업에서 만든 배경들과 고른 배경
+  const [aiBgs, setAiBgs] = useState<AiBackground[]>([])
+  const [aiBgId, setAiBgId] = useState<string | null>(null)
+  const aiBg = settings.bg === 'ai' ? (aiBgs.find((b) => b.id === aiBgId)?.el ?? null) : null
+  // 릴스·영상으로 만들기
+  const [reelOpen, setReelOpen] = useState(false)
+  const [reelBusy, setReelBusy] = useState(false)
+  const [reelError, setReelError] = useState<string | null>(null)
 
   useEffect(() => {
     try {
@@ -155,12 +168,45 @@ export default function PhotoStudio() {
   }
 
   const done = items.filter((x) => x.status === 'done' && x.cutout)
+  const sourceOf = (item: Item): PhotoSource => ({ original: item.original.el, cutout: item.cutout!, background: aiBg })
+
+  /** AI 배경 모양: 고른 크기에 맞춘다(원본 그대로면 첫 사진 비율) */
+  const first = items[0]?.original
+  const aiShape =
+    settings.size === 'square' ? 'square' : settings.size === 'wide' ? 'landscape' : settings.size === 'original' && first ? (first.width > first.height * 1.15 ? 'landscape' : first.height > first.width * 1.15 ? 'portrait' : 'square') : 'portrait'
+
+  function addAiBg(bg: AiBackground) {
+    setAiBgs((list) => [bg, ...list].slice(0, MAX_AI_BACKGROUNDS))
+    setAiBgId(bg.id)
+  }
+
+  /** 완성 사진을 릴스 사진 칸 비율(4:5)로 다시 그려 자동 릴스 새 프로젝트로 옮기고 그 화면을 연다 */
+  async function makeReel(v: PhotoReelInput) {
+    setReelBusy(true)
+    setReelError(null)
+    try {
+      // 릴스 디자인 대부분의 사진 칸이 4:5(약 960×1180)라 이 비율이면 상품이 잘리지 않는다
+      const story = { ...settings, size: 'portrait' as const }
+      const photos: Blob[] = []
+      for (const item of done) {
+        const canvas = document.createElement('canvas')
+        composePhoto(canvas, sourceOf(item), story)
+        photos.push(await canvasToPng(canvas))
+      }
+      const { reelFromPhotos } = await import('../reels/fromPhotos')
+      await reelFromPhotos({ photos, ...v })
+      navigate('/reels')
+    } catch (e) {
+      setReelError(e instanceof Error ? e.message : '릴스로 옮기지 못했습니다.')
+      setReelBusy(false)
+    }
+  }
 
   async function renderFiles(list: Item[]) {
     const files: { name: string; blob: Blob }[] = []
     for (const item of list) {
       const canvas = document.createElement('canvas')
-      composePhoto(canvas, { original: item.original.el, cutout: item.cutout! }, settings)
+      composePhoto(canvas, sourceOf(item), settings)
       const n = items.indexOf(item) + 1
       files.push({ name: `photo_${today()}_${String(n).padStart(2, '0')}.png`, blob: await canvasToPng(canvas) })
     }
@@ -176,7 +222,7 @@ export default function PhotoStudio() {
     try {
       if (!('ClipboardItem' in window)) throw new Error()
       const canvas = document.createElement('canvas')
-      composePhoto(canvas, { original: item.original.el, cutout: item.cutout! }, settings)
+      composePhoto(canvas, sourceOf(item), settings)
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': canvasToPng(canvas) })])
       flash('복사되었습니다. SNS 앱이나 다른 화면에 붙여넣으세요.')
     } catch {
@@ -213,7 +259,7 @@ export default function PhotoStudio() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="상품 사진 편집"
-        description="배경을 지우고 흰 배경·스튜디오 배경·그림자를 넣어 판매용 사진으로 만듭니다. 사진은 서버로 보내지 않고 이 기기 안에서 처리합니다."
+        description="배경을 지우고 흰 배경·스튜디오·AI 배경과 그림자를 넣어 판매용 사진으로 만들고, 릴스·영상으로도 이어 만듭니다. 배경 제거는 서버로 보내지 않고 이 기기 안에서 처리합니다."
       />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">
@@ -266,6 +312,8 @@ export default function PhotoStudio() {
                 </label>
               </div>
             )}
+            {settings.bg === 'ai' && <AiBgPanel shape={aiShape} backgrounds={aiBgs} selectedId={aiBgId} onAdd={addAiBg} onSelect={setAiBgId} />}
+            {settings.bg === 'ai' && !aiBg && <p className="mt-2 text-xs text-muted">AI 배경을 만들기 전까지는 스튜디오 배경으로 보여 줍니다.</p>}
             {settings.bg === 'transparent' && <p className="mt-2 text-xs text-muted">투명 배경은 PNG로 저장되어 다른 디자인에 그대로 얹을 수 있습니다.</p>}
           </div>
 
@@ -367,6 +415,9 @@ export default function PhotoStudio() {
                   <button type="button" onClick={clearAll} className={`${btnGhost} px-3 py-2 text-sm`}>
                     모두 지우기
                   </button>
+                  <button type="button" onClick={() => { setReelError(null); setReelOpen(true) }} disabled={!done.length} className={`${btnGhost} px-3 py-2 text-sm disabled:opacity-40`}>
+                    🎬 릴스·영상 만들기
+                  </button>
                   {canShareImages() && (
                     <button type="button" onClick={() => saveAll('gallery')} disabled={!done.length || saving} className={`${btnGhost} px-3 py-2 text-sm disabled:opacity-40`}>
                       갤러리에 저장
@@ -385,6 +436,7 @@ export default function PhotoStudio() {
                     item={item}
                     index={i}
                     settings={settings}
+                    background={aiBg}
                     started={started}
                     onRemove={() => remove(item.id)}
                     onRetry={() => update(item.id, { status: 'waiting', error: undefined })}
@@ -395,6 +447,8 @@ export default function PhotoStudio() {
               </ul>
             </>
           )}
+
+          {reelOpen && <PhotoReelDialog count={done.length} busy={reelBusy} error={reelError} onClose={() => !reelBusy && setReelOpen(false)} onSubmit={makeReel} />}
 
           {notice && (
             <div role="status" className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-forest-900 px-5 py-2.5 text-sm text-cream-50 shadow-lg">
@@ -418,6 +472,7 @@ type CardProps = {
   item: Item
   index: number
   settings: PhotoSettings
+  background: HTMLImageElement | null
   started: boolean
   onRemove: () => void
   onRetry: () => void
@@ -425,14 +480,14 @@ type CardProps = {
   onCopy: () => void
 }
 
-function ResultCard({ item, index, settings, started, onRemove, onRetry, onSave, onCopy }: CardProps) {
+function ResultCard({ item, index, settings, background, started, onRemove, onRetry, onSave, onCopy }: CardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // 미리보기 = 저장 파일 (같은 함수로 그린다)
   useEffect(() => {
     if (item.status !== 'done' || !item.cutout || !canvasRef.current) return
-    composePhoto(canvasRef.current, { original: item.original.el, cutout: item.cutout }, settings)
-  }, [item, settings])
+    composePhoto(canvasRef.current, { original: item.original.el, cutout: item.cutout, background }, settings)
+  }, [item, settings, background])
 
   const label = item.status === 'working' ? '배경 지우는 중…' : item.status === 'waiting' ? (started ? '차례를 기다리는 중' : '시작을 누르면 처리합니다') : null
 

@@ -14,7 +14,25 @@ const STYLES: Record<string, string> = {
   minimal: '여백이 많은 미니멀한 배경 이미지, 부드러운 색면과 질감',
 }
 
-type ImageRequest = { prompt: string; style?: string; snsType?: string; brandName?: string; foodBrand?: boolean }
+type ImageRequest = {
+  prompt: string
+  style?: string
+  snsType?: string
+  brandName?: string
+  foodBrand?: boolean
+  /** post: 게시물 이미지(기본) / productBg: 상품 사진 편집의 AI 배경(상품은 그리지 않고 빈 자리만) */
+  purpose?: 'post' | 'productBg'
+  /** productBg일 때 결과 모양 */
+  shape?: 'square' | 'portrait' | 'landscape'
+}
+
+/** 상품 배경 규칙: 상품은 원본 사진을 그대로 얹으므로 배경에는 빈 자리만 남긴다 */
+const PRODUCT_BG_RULES = [
+  '상품 사진 촬영용 배경 장면만 그린다. 가운데 아래쪽에 상품을 올려놓을 비어 있는 평평한 바닥·테이블 면을 넓게 남긴다.',
+  '가운데에는 어떤 상품·병·상자·음식·물건도 놓지 않는다. 소품은 가장자리와 뒤쪽에만 작게, 흐릿하게.',
+  '사람, 손, 동물, 글자, 숫자, 로고, 워터마크를 넣지 않는다.',
+  '정면 눈높이 구도, 자연스러운 조명, 뒤쪽은 살짝 흐린 얕은 심도의 실사 사진.',
+]
 
 export default async (req: Request) => {
   if (req.method !== 'POST') return json(405, { error: '허용되지 않은 요청입니다.' })
@@ -40,27 +58,32 @@ export default async (req: Request) => {
     return json(500, { error: '서버에 이미지 생성 설정(OPENAI_IMAGE_MODEL)이 없습니다. Netlify 환경변수에 이미지 모델 이름을 넣어 주세요.' })
   }
 
-  // 세로형 SNS는 세로 이미지, 블로그·링크드인·페이스북은 가로 이미지
+  const productBg = input.purpose === 'productBg'
+  // 세로형 SNS는 세로 이미지, 블로그·링크드인·페이스북은 가로 이미지. 상품 배경은 화면에서 고른 모양
   const kind = getSnsProfile(input.snsType ?? '')?.value
-  const landscape = kind === 'naverblog' || kind === 'linkedin' || kind === 'facebook'
+  const shape = productBg
+    ? input.shape === 'square' || input.shape === 'landscape' ? input.shape : 'portrait'
+    : kind === 'naverblog' || kind === 'linkedin' || kind === 'facebook' ? 'landscape' : 'portrait'
   const dalle = model.startsWith('dall-e')
+  const size =
+    shape === 'square' ? '1024x1024' : shape === 'landscape' ? (dalle ? '1792x1024' : '1536x1024') : dalle ? '1024x1792' : '1024x1536'
 
-  const rules = [
+  const rules = productBg ? PRODUCT_BG_RULES : [
     '이미지 안에 글자·숫자·로고·워터마크를 넣지 않는다(글씨는 나중에 따로 얹는다).',
     '실존 인물의 얼굴이나 다른 브랜드 상표를 그리지 않는다.',
     input.foodBrand
       ? '실제 판매 메뉴처럼 보이는 음식 완성 사진은 만들지 않는다. 분위기 배경, 식재료, 식기, 공간, 일러스트 위주로 표현한다.'
       : '',
   ].filter(Boolean)
-  const fullPrompt = [`${STYLES[input.style ?? 'photo'] ?? STYLES.photo}.`, prompt, ...rules].join('\n')
+  const fullPrompt = (productBg ? [`배경 장면: ${prompt}`, ...rules] : [`${STYLES[input.style ?? 'photo'] ?? STYLES.photo}.`, prompt, ...rules]).join('\n')
 
   const body: Record<string, unknown> = dalle
-    ? { model, prompt: fullPrompt, n: 1, size: landscape ? '1792x1024' : '1024x1792', response_format: 'b64_json' }
+    ? { model, prompt: fullPrompt, n: 1, size, response_format: 'b64_json' }
     : {
         model,
         prompt: fullPrompt,
         n: 1,
-        size: landscape ? '1536x1024' : '1024x1536',
+        size,
         quality: process.env.OPENAI_IMAGE_QUALITY || 'low',
         output_format: 'jpeg',
         output_compression: 85,

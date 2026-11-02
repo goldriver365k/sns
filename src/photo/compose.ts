@@ -5,7 +5,7 @@
 import type { Cutout } from './removeBg'
 
 export type SizeId = 'square' | 'portrait' | 'story' | 'wide' | 'original'
-export type BgKind = 'transparent' | 'color' | 'studio' | 'blur'
+export type BgKind = 'transparent' | 'color' | 'studio' | 'blur' | 'ai'
 export type ShadowKind = 'none' | 'floor' | 'soft'
 
 export const SIZES: { id: SizeId; label: string; hint: string; w: number; h: number }[] = [
@@ -38,7 +38,12 @@ export type PhotoSettings = {
 
 export const DEFAULT_SETTINGS: PhotoSettings = { size: 'square', bg: 'color', color: '#ffffff', shadow: 'floor', padding: 0.1 }
 
-export type PhotoSource = { original: HTMLImageElement; cutout: Cutout }
+export type PhotoSource = {
+  original: HTMLImageElement
+  cutout: Cutout
+  /** AI 배경 이미지 (배경 종류가 'ai'일 때). 없으면 스튜디오 배경으로 그린다 */
+  background?: HTMLImageElement | null
+}
 
 /** 결과 캔버스 크기 */
 export function outputSize(src: PhotoSource, s: PhotoSettings) {
@@ -56,7 +61,7 @@ export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: Pho
   ctx.clearRect(0, 0, w, h)
   ctx.imageSmoothingQuality = 'high'
 
-  drawBackground(ctx, w, h, src.original, s)
+  drawBackground(ctx, w, h, src, s)
 
   const product = src.cutout.canvas
   let pw: number
@@ -69,6 +74,16 @@ export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: Pho
     ph = product.height
     px = src.cutout.x
     py = src.cutout.y
+  } else if (s.bg === 'ai' && src.background) {
+    // AI 배경: 비워 둔 바닥·테이블 면에 올려놓듯 아래쪽 가운데에 세운다
+    const pad = Math.round(Math.min(w, h) * s.padding)
+    const boxW = w - pad * 2
+    const boxH = h * 0.62 - pad
+    const scale = Math.min(boxW / product.width, boxH / product.height)
+    pw = product.width * scale
+    ph = product.height * scale
+    px = (w - pw) / 2
+    py = h * 0.88 - ph
   } else {
     // 여백 안에 들어가게 줄이고 가운데 배치
     const pad = Math.round(Math.min(w, h) * s.padding)
@@ -93,14 +108,28 @@ export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: Pho
   ctx.restore()
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, original: HTMLImageElement, s: PhotoSettings) {
+/** 이미지를 빈틈없이 채우도록(cover) 가운데 맞춰 그린다 */
+function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: number, h: number) {
+  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight)
+  const dw = img.naturalWidth * scale
+  const dh = img.naturalHeight * scale
+  ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh)
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, src: PhotoSource, s: PhotoSettings) {
+  const original = src.original
   if (s.bg === 'transparent') return
+  if (s.bg === 'ai' && src.background) {
+    drawCover(ctx, src.background, w, h)
+    return
+  }
   if (s.bg === 'color') {
     ctx.fillStyle = s.color
     ctx.fillRect(0, 0, w, h)
     return
   }
-  if (s.bg === 'studio') {
+  // AI 배경을 아직 만들지 않았으면 스튜디오 배경으로 보여 준다
+  if (s.bg === 'studio' || s.bg === 'ai') {
     // 가운데가 밝고 가장자리로 갈수록 살짝 어두운 촬영 스튜디오 느낌
     ctx.fillStyle = s.color
     ctx.fillRect(0, 0, w, h)

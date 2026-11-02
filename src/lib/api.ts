@@ -41,7 +41,15 @@ export async function checkServer(): Promise<Record<string, string>> {
 }
 
 /** AI로 이미지 1장을 만든다. data URL을 돌려준다. */
-export async function generateImage(req: { prompt: string; style: string; snsType: string; brandName: string; foodBrand: boolean }): Promise<string> {
+export async function generateImage(req: {
+  prompt: string
+  style?: string
+  snsType?: string
+  brandName?: string
+  foodBrand?: boolean
+  purpose?: 'post' | 'productBg'
+  shape?: 'square' | 'portrait' | 'landscape'
+}): Promise<string> {
   const user = auth?.currentUser
   if (!user) throw new Error('로그인이 필요합니다.')
   let res: Response
