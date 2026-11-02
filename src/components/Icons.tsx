@@ -39,3 +39,6 @@ export const IconPhone = (p: P) => (
 export const IconFilm = (p: P) => (
   <svg {...base} className={p.className}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4M10 9.5l4 2.5-4 2.5z" /></svg>
 )
+export const IconWand = (p: P) => (
+  <svg {...base} className={p.className}><path d="M4 20L15 9M13 7l4 4" /><path d="M18 3v3M16.5 4.5h3M20 9v2M19 10h2M10 3v2M9 4h2" /></svg>
+)

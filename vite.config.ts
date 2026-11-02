@@ -11,6 +11,7 @@ export default defineConfig({
         manualChunks: (id) => (id.includes('node_modules/firebase') || id.includes('node_modules/@firebase') ? 'firebase' : undefined),
       },
     },
-    chunkSizeWarningLimit: 700,
+    // 상품 사진 편집의 배경 제거 AI 라이브러리(약 900KB)는 그 화면에서만 따로 내려받으므로 기준을 그만큼 둔다
+    chunkSizeWarningLimit: 950,
   },
 })
