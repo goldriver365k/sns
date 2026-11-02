@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import MyDesigns from '../components/photo/MyDesigns'
 import { prepareImage } from '../lib/images'
 import { SIZES, type PhotoSettings, type SizeId } from '../photo/compose'
 import { getEditor, openPhoto, useEditor, type EditorTool } from '../photo/editorStore'
@@ -142,6 +143,8 @@ export default function PhotoHome() {
           </Link>
         </li>
       </ul>
+      <MyDesigns />
+
       <p className="mt-6 text-xs text-muted">배경 지우기는 이 기기 안에서 처리합니다(사진을 서버로 보내지 않음). AI 배경·제품 영상만 AI 서버를 쓰며 사용료가 듭니다.</p>
     </div>
   )

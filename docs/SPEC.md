@@ -400,9 +400,17 @@ PC와 모바일 모두 대응한다.
   - 실행 취소·다시 실행(버튼, Ctrl+Z / Ctrl+Shift+Z·Ctrl+Y, 최근 50단계), 저장(PNG)·복사, 새 사진(Ctrl+V도 가능).
   - 영상·릴스 패널: 🎞 제품 영상(AI, 글자는 빼고 보냄) / 🎬 릴스로 만들기(글자 포함, 4:5로 그려 AI 자동 릴스로).
   - 그리기: `composePhoto(canvas, src, settings, { transform, texts })` 하나로 미리보기·저장·영상·릴스를 모두 그린다(미리보기 = 저장 파일). 상품 위치는 자동 배치 기준 이동·배율·회전(`ProductTransform`), 글자는 `TextLayer`(위치 비율·1080 기준 크기).
-  - 편집 내용은 메뉴를 옮겨도 유지(모듈 저장소 `src/photo/editorStore.ts`), 새로고침하면 사라진다(작업 보관은 다음 단계 "내 디자인"). 마지막 배경·크기 설정은 이 기기에 기억(localStorage `snsroom.photo.editor.settings`).
+  - 편집 내용은 메뉴를 옮겨도 유지(모듈 저장소 `src/photo/editorStore.ts`)하고, 아래 "내 디자인"에 자동 저장된다. 마지막 배경·크기 설정은 이 기기에 기억(localStorage `snsroom.photo.editor.settings`).
+- **내 디자인** (사용자 요청 2026-11-02, 3·4단계)
+  - 편집기에서 배경을 지운 뒤부터 **자동 저장**: 손을 멈추고 1.2초 뒤(`src/photo/autosave.ts`). 위쪽에 제목(고칠 수 있음, 기본 "상품 사진 MM.DD HH:mm")과 상태(수정됨·곧 저장 / 저장 중… / 내 디자인에 저장됨 / 저장하지 못했습니다 [다시 저장]). 저장 전에 창을 닫으면 브라우저 경고.
+  - Firestore(`src/photo/designs.ts`): `photoDesigns/{id}` — `title`, `originalId`, `maskId`, `aiBg{id,prompt}|null`, `settings`, `transform`, `texts[]`, `thumbnail`(긴 변 360px JPEG), `createdAt`, `updatedAt`. 사진은 `images/{id}`(기존 컬렉션, 900KB 이하): 원본 JPEG(긴 변 1600px, `source: 'photo'`) · 배경 제거 **마스크** 흑백 PNG(`photo-mask`) · AI 배경 JPEG(`photo-aibg`, 이 디자인에 처음 쓸 때 한 번, 안 쓰게 되면 삭제).
+  - 배경을 지운 상품은 원본 + 마스크로 다시 만든다 → 다시 열 때 배경 제거 AI를 돌리지 않는다(테스트에서 약 0.2초).
+  - 홈의 **내 디자인**: 최근 60개, 미리보기·제목·수정 시각. 누르면 편집기에서 이어서 편집(같은 문서에 계속 저장), × 는 확인 후 디자인과 사진까지 삭제. 다른 기기에서도 보인다.
+  - 보안 규칙: 기존 규칙(관리자만 모든 문서 읽기·쓰기)이 새 컬렉션에도 적용되어 바꿀 것 없음.
+- **여러 장 → 편집기** (3단계): 여러 장 화면의 사진마다 [편집] → 배경을 다시 지우지 않고 같은 설정(AI 배경 포함)으로 편집기에서 열어 위치·글자를 고친다(내 디자인에 저장됨).
+- 테스트(Firestore를 메모리 속 가짜로 바꿔 실제 저장 코드 실행): 첫 디자인 저장(원본·마스크·문서) → 제목·글자·상품 이동 저장 → 둘째 디자인 → 목록 2개 → 첫 디자인 다시 열기(제목·글자 복원, 0.2초) → 고치면 같은 문서에 저장 → 삭제 시 사진까지 삭제 → 여러 장 [편집] → 편집기(배경 제거 생략) → 저장, 페이지 오류 0건. **실제 Firestore 저장은 운영 사이트에서 확인 필요.**
 - **여러 장 한꺼번에** `/photo/batch` (`src/pages/PhotoStudio.tsx`): 아래 설명의 기존 화면(최대 30장 같은 설정, ZIP, 릴스).
-- 테스트(가짜 서버 응답): 홈 → 글자 넣기 타일 → 편집기(글자 패널) → 배경 제거 → 가격표·제목 추가 → 상품 끌기(이동)·모서리(133%)·회전(41°) → 글자 끌기·수정 → 실행 취소·다시 → AI 배경 → 크기 4:5 → PNG 저장 → 제품 영상 창 → 휴대폰 화면 → 릴스 이동, 페이지 오류 0건.
+- 테스트(가짜 서버 응답, 2단계): 홈 → 글자 넣기 타일 → 편집기(글자 패널) → 배경 제거 → 가격표·제목 추가 → 상품 끌기(이동)·모서리(133%)·회전(41°) → 글자 끌기·수정 → 실행 취소·다시 → AI 배경 → 크기 4:5 → PNG 저장 → 제품 영상 창 → 휴대폰 화면 → 릴스 이동, 페이지 오류 0건.
 
 메뉴 **상품 사진 편집**. 상품 사진의 배경을 지우고 판매·SNS용 사진으로 다시 만든다. 아래 설정·저장 설명은 여러 장 화면(`/photo/batch`) 기준이며 편집기도 같은 설정을 쓴다.
 
@@ -500,6 +508,7 @@ PC와 모바일 모두 대응한다.
   - `texts[]` — 영상 위에 더 넣은 글자 `{ id, sceneId(null=전체), text, x, y, size, color, font, style }`.
   - `captions` — 언어별 인스타그램 캡션 `{ ko, en, … }`(해시태그·사이트 링크 포함).
   - 편집 내용은 1.2초 멈추면 자동 저장. 마지막으로 연 프로젝트는 다음에 릴스 화면에 들어오면 다시 열린다(localStorage `snsroom.reels.lastProject`).
+- `photoDesigns/{id}` — 상품 사진 편집기의 내 디자인(구현): `title`, `originalId`, `maskId`, `aiBg{id, prompt}|null`, `settings`(크기·배경·그림자·여백·직접 입력 크기), `transform{dx, dy, scale, rotate}`, `texts[]{id, text, x, y, size, color, font, bold, box}`, `thumbnail`, `createdAt`, `updatedAt`. 사진은 `images/{id}`(`source`: photo / photo-mask / photo-aibg). 상세: 7-1
 - `reelVoices/{key}` — 자동 릴스 나레이션 음성 저장(구현): `data`(mp3 base64), `createdAt`. key는 목소리·말투·속도·글의 해시. 같은 문장을 다시 만들지 않아 비용을 아낀다(이 기기 IndexedDB에도 같은 key로 저장).
 
 ---

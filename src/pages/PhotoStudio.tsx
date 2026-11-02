@@ -5,6 +5,7 @@ import SizePicker from '../components/photo/SizePicker'
 import AiBgPanel, { MAX_AI_BACKGROUNDS, type AiBackground } from '../components/AiBgPanel'
 import PhotoReelDialog, { type PhotoReelInput } from '../components/PhotoReelDialog'
 import ProductAnimatorDialog from '../components/ProductAnimatorDialog'
+import { markShared, openPhoto, setEditor } from '../photo/editorStore'
 import type { VideoAspect } from '../../shared/productVideo'
 import { btnGhost, btnLink, btnPrimary, fieldLabel } from '../components/ui'
 import { prepareImage, type PickedImage } from '../lib/images'
@@ -185,6 +186,15 @@ export default function PhotoStudio() {
   function addAiBg(bg: AiBackground) {
     setAiBgs((list) => [bg, ...list].slice(0, MAX_AI_BACKGROUNDS))
     setAiBgId(bg.id)
+  }
+
+  /** 이 사진을 편집기에서 열기: 배경을 다시 지우지 않고, 지금 설정 그대로 */
+  function openInEditor(item: Item) {
+    if (!item.cutout) return
+    markShared(item.original.url)
+    openPhoto(item.original, 'size', { ...settings }, item.cutout)
+    if (settings.bg === 'ai' && aiBgId) setEditor((s) => ({ aiBgs: [...aiBgs, ...s.aiBgs.filter((b) => !aiBgs.some((x) => x.id === b.id))], design: { ...s.design, aiBgId } }))
+    navigate('/photo/edit')
   }
 
   /** 영상용 설정: 투명 배경은 영상(JPEG)에 쓸 수 없어 흰 배경으로 바꾼다 */
@@ -458,6 +468,7 @@ export default function PhotoStudio() {
                     onSave={() => saveOne(item)}
                     onCopy={() => copyOne(item)}
                     onAnimate={() => openAnimator(item)}
+                    onEdit={() => openInEditor(item)}
                   />
                 ))}
               </ul>
@@ -497,9 +508,10 @@ type CardProps = {
   onSave: () => void
   onCopy: () => void
   onAnimate: () => void
+  onEdit: () => void
 }
 
-function ResultCard({ item, index, settings, background, started, onRemove, onRetry, onSave, onCopy, onAnimate }: CardProps) {
+function ResultCard({ item, index, settings, background, started, onRemove, onRetry, onSave, onCopy, onAnimate, onEdit }: CardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // 미리보기 = 저장 파일 (같은 함수로 그린다)
@@ -538,14 +550,17 @@ function ResultCard({ item, index, settings, background, started, onRemove, onRe
         </div>
       )}
       {item.status === 'done' && (
-        <div className="flex border-t border-cream-200 text-sm">
-          <button type="button" onClick={onSave} className="flex-1 py-2 font-medium text-forest-700 hover:bg-cream-100">
+        <div className="grid grid-cols-4 border-t border-cream-200 text-xs sm:text-sm">
+          <button type="button" onClick={onEdit} title="편집기에서 위치·글자 고치기" className="py-2 font-semibold text-forest-700 hover:bg-cream-100">
+            편집
+          </button>
+          <button type="button" onClick={onSave} className="border-l border-cream-200 py-2 text-forest-700 hover:bg-cream-100">
             저장
           </button>
-          <button type="button" onClick={onCopy} className="flex-1 border-l border-cream-200 py-2 text-forest-700 hover:bg-cream-100">
+          <button type="button" onClick={onCopy} className="border-l border-cream-200 py-2 text-forest-700 hover:bg-cream-100">
             복사
           </button>
-          <button type="button" onClick={onAnimate} title="AI 영상으로 움직이게" className="flex-1 border-l border-cream-200 py-2 text-forest-700 hover:bg-cream-100">
+          <button type="button" onClick={onAnimate} title="AI 영상으로 움직이게" className="border-l border-cream-200 py-2 text-forest-700 hover:bg-cream-100">
             🎞 영상
           </button>
         </div>

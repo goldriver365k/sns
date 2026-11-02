@@ -12,6 +12,7 @@ import { prepareImage } from '../lib/images'
 import { BG_COLORS, composePhoto, fontSpec, NO_TRANSFORM, shapeFor, SIZES, sizeLabel, targetSize, type BgKind, type PhotoSettings, type PhotoSource, type ShadowKind, type TextLayer } from '../photo/compose'
 import { getEditor, openPhoto, patchDoc, rememberSettings, setEditor, useEditor, type DesignState, type EditorTool } from '../photo/editorStore'
 import { isModelReady, loadRemover, removeBackground, type ModelProgress } from '../photo/removeBg'
+import { useDesignAutosave } from '../photo/autosave'
 import type { VideoAspect } from '../../shared/productVideo'
 
 const TOOLS: { id: EditorTool; icon: string; label: string }[] = [
@@ -64,6 +65,8 @@ export default function PhotoEditor() {
   const [reelBusy, setReelBusy] = useState(false)
   const [reelError, setReelError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  // 내 디자인 자동 저장 (배경을 지운 뒤부터)
+  const autosave = useDesignAutosave(doc, design)
   // 손을 뗄 때 기록할 최신 편집 내용
   const designRef = useRef(design)
   designRef.current = design
@@ -269,9 +272,27 @@ export default function PhotoEditor() {
     <div className="mx-auto max-w-[1400px]">
       {/* 위쪽 막대: 홈 · 실행 취소 · 저장 */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Link to="/photo" className="mr-auto text-sm font-medium text-forest-700 hover:underline">
-          ← 상품 사진 편집 홈
+        <Link to="/photo" className="text-sm font-medium text-forest-700 hover:underline">
+          ← 홈
         </Link>
+        {/* 내 디자인 제목 + 자동 저장 상태 */}
+        <div className="mr-auto flex min-w-0 flex-1 items-center gap-2">
+          <input aria-label="디자인 제목" value={doc.title} maxLength={40} onChange={(e) => patchDoc({ title: e.target.value })} className="min-w-0 max-w-[260px] flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-[15px] font-semibold text-forest-900 outline-none hover:border-cream-300 focus:border-forest-500 focus:bg-white" />
+          <span className="shrink-0 text-xs text-muted" role="status">
+            {!src && '배경을 지운 뒤 자동 저장'}
+            {src && autosave.status.state === 'pending' && '수정됨 · 곧 저장'}
+            {src && autosave.status.state === 'saving' && '저장 중…'}
+            {src && autosave.status.state === 'saved' && '내 디자인에 저장됨'}
+            {src && autosave.status.state === 'error' && (
+              <span className="text-red-700">
+                저장하지 못했습니다{' '}
+                <button type="button" onClick={autosave.retry} className="underline">
+                  다시 저장
+                </button>
+              </span>
+            )}
+          </span>
+        </div>
         {/* 크기는 언제든 바로 바꿀 수 있게 위쪽에도 둔다 */}
         <label className="flex items-center gap-2 text-sm">
           <span className="font-semibold text-forest-900">크기</span>
