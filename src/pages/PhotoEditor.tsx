@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import AiBgPanel, { MAX_AI_BACKGROUNDS, type AiBackground } from '../components/AiBgPanel'
 import EditorStage, { type Selection } from '../components/photo/EditorStage'
+import SizePicker from '../components/photo/SizePicker'
 import TextPanel from '../components/photo/TextPanel'
 import PhotoReelDialog, { type PhotoReelInput } from '../components/PhotoReelDialog'
 import ProductAnimatorDialog from '../components/ProductAnimatorDialog'
 import { btnGhost, btnPrimary } from '../components/ui'
 import { canvasToPng, downloadPng } from '../cards/export'
 import { prepareImage } from '../lib/images'
-import { BG_COLORS, composePhoto, fontSpec, NO_TRANSFORM, SIZES, type BgKind, type PhotoSettings, type PhotoSource, type ShadowKind, type TextLayer } from '../photo/compose'
+import { BG_COLORS, composePhoto, fontSpec, NO_TRANSFORM, shapeFor, SIZES, sizeLabel, targetSize, type BgKind, type PhotoSettings, type PhotoSource, type ShadowKind, type TextLayer } from '../photo/compose'
 import { getEditor, openPhoto, patchDoc, rememberSettings, setEditor, useEditor, type DesignState, type EditorTool } from '../photo/editorStore'
 import { isModelReady, loadRemover, removeBackground, type ModelProgress } from '../photo/removeBg'
 import type { VideoAspect } from '../../shared/productVideo'
@@ -261,6 +262,7 @@ export default function PhotoEditor() {
   }
 
   const t = design.transform
+  const out = targetSize(design.settings, doc.original.width, doc.original.height)
   const moved = t.dx !== 0 || t.dy !== 0 || t.scale !== 1 || t.rotate !== 0
 
   return (
@@ -270,6 +272,18 @@ export default function PhotoEditor() {
         <Link to="/photo" className="mr-auto text-sm font-medium text-forest-700 hover:underline">
           ← 상품 사진 편집 홈
         </Link>
+        {/* 크기는 언제든 바로 바꿀 수 있게 위쪽에도 둔다 */}
+        <label className="flex items-center gap-2 text-sm">
+          <span className="font-semibold text-forest-900">크기</span>
+          <select aria-label="결과 크기" value={design.settings.size} onChange={(e) => patchSettings({ size: e.target.value as PhotoSettings['size'] })} className="rounded-xl border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500">
+            {SIZES.map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.label}
+                {x.w ? ` (${x.w}×${x.h})` : ''}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="button" onClick={undo} disabled={!past.current.length} aria-label="실행 취소" title="실행 취소 (Ctrl+Z)" className={`${btnGhost} px-3 py-1 text-xl leading-none disabled:opacity-40`}>
           ↶
         </button>
@@ -333,7 +347,7 @@ export default function PhotoEditor() {
               {design.settings.bg === 'ai' && (
                 <>
                   <AiBgPanel
-                    shape={design.settings.size === 'square' ? 'square' : design.settings.size === 'wide' ? 'landscape' : 'portrait'}
+                    shape={shapeFor(out.w, out.h)}
                     backgrounds={aiBgs}
                     selectedId={design.aiBgId}
                     onAdd={addAiBg}
@@ -359,14 +373,7 @@ export default function PhotoEditor() {
 
           {tool === 'size' && (
             <div className="space-y-5">
-              <div className="grid gap-1.5">
-                {SIZES.map((s) => (
-                  <button key={s.id} type="button" aria-pressed={design.settings.size === s.id} onClick={() => patchSettings({ size: s.id })} className={`flex items-baseline justify-between rounded-lg border px-3 py-2 text-left text-sm ${design.settings.size === s.id ? 'border-forest-700 bg-forest-700 text-cream-50' : 'border-cream-300 bg-white text-ink hover:border-forest-500'}`}>
-                    <span className="font-medium">{s.label}</span>
-                    <span className={`text-xs ${design.settings.size === s.id ? 'text-cream-100' : 'text-muted'}`}>{s.hint}</span>
-                  </button>
-                ))}
-              </div>
+              <SizePicker settings={design.settings} onChange={patchSettings} />
               {design.settings.size !== 'original' && (
                 <Slider label="여백" value={Math.round(design.settings.padding * 100)} min={0} max={30} unit="%" onChange={(v) => setDesign({ ...design, settings: { ...design.settings, padding: v / 100 } })} onDone={() => commit(design)} />
               )}
@@ -407,19 +414,25 @@ export default function PhotoEditor() {
         {/* 가운데 캔버스 */}
         <section aria-label="캔버스" className="order-1 flex min-h-[300px] items-center justify-center rounded-2xl border border-cream-300 bg-cream-200/60 p-4 lg:order-none lg:min-h-[70vh] lg:p-8">
           {src ? (
-            <EditorStage
-              src={src}
-              settings={design.settings}
-              transform={design.transform}
-              texts={design.texts}
-              selected={selected}
-              onSelect={(s) => {
-                setSelected(s)
-                if (s && s !== 'product') setTool('text')
-              }}
-              onPreview={(p) => setDesign((d) => ({ ...d, ...p }))}
-              onCommit={() => commit(designRef.current)}
-            />
+            <div className="w-full">
+              <EditorStage
+                src={src}
+                settings={design.settings}
+                transform={design.transform}
+                texts={design.texts}
+                selected={selected}
+                onSelect={(s) => {
+                  setSelected(s)
+                  if (s && s !== 'product') setTool('text')
+                }}
+                onPreview={(p) => setDesign((d) => ({ ...d, ...p }))}
+                onCommit={() => commit(designRef.current)}
+              />
+              <p className="mt-3 text-center text-xs text-muted">
+                {sizeLabel(design.settings)}
+                {design.settings.size === 'original' ? ` · ${out.w}×${out.h}px` : ''}
+              </p>
+            </div>
           ) : (
             <div className="relative max-w-full">
               <img src={doc.original.url} alt="원본 사진" className={`max-h-[68vh] max-w-full rounded-lg ${doc.status === 'error' ? '' : 'opacity-50'}`} />

@@ -2,19 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import { prepareImage } from '../lib/images'
-import type { PhotoSettings } from '../photo/compose'
-import { openPhoto, useEditor, type EditorTool } from '../photo/editorStore'
+import { SIZES, type PhotoSettings, type SizeId } from '../photo/compose'
+import { getEditor, openPhoto, useEditor, type EditorTool } from '../photo/editorStore'
 
 type Tile = { id: string; icon: string; label: string; desc: string; tool: EditorTool; preset?: Partial<PhotoSettings> }
 
 /** 홈 화면 도구: 누르면 사진을 고르고, 그 도구가 열린 편집기로 간다 */
 const TILES: Tile[] = [
   { id: 'remove', icon: '✂️', label: '배경 지우기', desc: '상품만 깔끔하게', tool: 'background', preset: { bg: 'transparent', shadow: 'none' } },
-  { id: 'white', icon: '⬜', label: '흰 배경', desc: '스마트스토어·쿠팡 대표 이미지', tool: 'background', preset: { bg: 'color', color: '#ffffff', size: 'square', shadow: 'floor' } },
+  { id: 'white', icon: '⬜', label: '흰 배경', desc: '스마트스토어·쿠팡 대표 이미지', tool: 'background', preset: { bg: 'color', color: '#ffffff', size: 'market', shadow: 'floor' } },
   { id: 'ai', icon: '✨', label: 'AI 배경', desc: '대리석·카페·계절 장면', tool: 'background', preset: { bg: 'ai', shadow: 'floor' } },
   { id: 'studio', icon: '💡', label: '스튜디오 배경', desc: '조명 받은 단색 배경', tool: 'background', preset: { bg: 'studio' } },
   { id: 'shadow', icon: '🌗', label: 'AI 그림자', desc: '바닥·부드러운 그림자', tool: 'shadow' },
-  { id: 'resize', icon: '📐', label: '크기 바꾸기', desc: '1:1 · 4:5 · 9:16 · 16:9', tool: 'size' },
+  { id: 'resize', icon: '📐', label: '크기 바꾸기', desc: '쇼핑몰·인스타·유튜브·직접 입력', tool: 'size' },
   { id: 'text', icon: '🔤', label: '글자 넣기', desc: '가격·문구·할인 띠', tool: 'text' },
   { id: 'video', icon: '🎞', label: '제품 영상 (AI)', desc: '사진을 움직이는 영상으로', tool: 'video' },
   { id: 'reel', icon: '🎬', label: '릴스 만들기', desc: '자막·음악 넣은 MP4', tool: 'video' },
@@ -28,13 +28,15 @@ export default function PhotoHome() {
   const pending = useRef<Tile | null>(null)
   const [drag, setDrag] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // 시작할 크기: 마지막에 쓴 크기를 기본으로 (도구 타일이 크기를 정하면 그 크기)
+  const [size, setSize] = useState<SizeId>(() => getEditor().design.settings.size)
 
   async function start(blob: Blob | undefined, tile: Tile | null) {
     if (!blob) return
     setError(null)
     try {
       const img = await prepareImage(blob, 'file')
-      openPhoto(img, tile?.tool ?? 'background', tile?.preset)
+      openPhoto(img, tile?.tool ?? 'background', { size, ...tile?.preset })
       navigate('/photo/edit')
     } catch (e) {
       setError(e instanceof Error ? e.message : '사진을 열지 못했습니다.')
@@ -80,9 +82,23 @@ export default function PhotoHome() {
           <p className="text-xl font-bold text-forest-900">사진으로 시작</p>
           <p className="mt-1 text-[15px] text-muted">상품 사진을 끌어다 놓거나 붙여넣으세요 (Ctrl+V). 배경은 자동으로 지워집니다.</p>
         </div>
-        <button type="button" onClick={() => pick(null)} className="shrink-0 rounded-2xl bg-forest-700 px-7 py-4 text-[16px] font-semibold text-cream-50 hover:bg-forest-900">
-          ＋ 사진 고르기
-        </button>
+        <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="font-semibold text-forest-900">만들 크기</span>
+            <select aria-label="만들 크기" value={size} onChange={(e) => setSize(e.target.value as SizeId)} className="flex-1 rounded-xl border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500">
+              {SIZES.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.label}
+                  {x.w ? ` (${x.w}×${x.h})` : ` — ${x.hint}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" onClick={() => pick(null)} className="rounded-2xl bg-forest-700 px-7 py-4 text-[16px] font-semibold text-cream-50 hover:bg-forest-900">
+            ＋ 사진 고르기
+          </button>
+          <p className="text-xs text-muted sm:text-right">편집 중에도 위쪽 [크기]에서 바꿀 수 있습니다</p>
+        </div>
       </div>
       <input
         ref={fileRef}

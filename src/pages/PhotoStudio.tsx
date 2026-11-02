@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
+import SizePicker from '../components/photo/SizePicker'
 import AiBgPanel, { MAX_AI_BACKGROUNDS, type AiBackground } from '../components/AiBgPanel'
 import PhotoReelDialog, { type PhotoReelInput } from '../components/PhotoReelDialog'
 import ProductAnimatorDialog from '../components/ProductAnimatorDialog'
@@ -8,7 +9,7 @@ import type { VideoAspect } from '../../shared/productVideo'
 import { btnGhost, btnLink, btnPrimary, fieldLabel } from '../components/ui'
 import { prepareImage, type PickedImage } from '../lib/images'
 import { canvasToPng, canShareImages, downloadPng, downloadZip, saveToGallery } from '../cards/export'
-import { BG_COLORS, composePhoto, DEFAULT_SETTINGS, SIZES, type BgKind, type PhotoSettings, type PhotoSource, type ShadowKind } from '../photo/compose'
+import { BG_COLORS, composePhoto, DEFAULT_SETTINGS, shapeFor, targetSize, type BgKind, type PhotoSettings, type PhotoSource, type ShadowKind } from '../photo/compose'
 import { isModelReady, loadRemover, removeBackground, type Cutout, type ModelProgress } from '../photo/removeBg'
 
 /** 한 번에 다룰 수 있는 사진 수 */
@@ -176,8 +177,10 @@ export default function PhotoStudio() {
 
   /** AI 배경 모양: 고른 크기에 맞춘다(원본 그대로면 첫 사진 비율) */
   const first = items[0]?.original
-  const aiShape =
-    settings.size === 'square' ? 'square' : settings.size === 'wide' ? 'landscape' : settings.size === 'original' && first ? (first.width > first.height * 1.15 ? 'landscape' : first.height > first.width * 1.15 ? 'portrait' : 'square') : 'portrait'
+  const aiShape = (() => {
+    const out = targetSize(settings, first?.width ?? 1000, first?.height ?? 1000)
+    return shapeFor(out.w, out.h)
+  })()
 
   function addAiBg(bg: AiBackground) {
     setAiBgs((list) => [bg, ...list].slice(0, MAX_AI_BACKGROUNDS))
@@ -292,20 +295,7 @@ export default function PhotoStudio() {
         <section className="order-2 space-y-6 rounded-2xl border border-cream-300 bg-cream-50 p-5 lg:order-none lg:sticky lg:top-6">
           <div>
             <span className={fieldLabel}>크기</span>
-            <div className="grid grid-cols-1 gap-1.5">
-              {SIZES.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  aria-pressed={settings.size === s.id}
-                  onClick={() => patch({ size: s.id })}
-                  className={`flex items-baseline justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${settings.size === s.id ? 'border-forest-700 bg-forest-700 text-cream-50' : 'border-cream-300 bg-white text-ink hover:border-forest-500'}`}
-                >
-                  <span className="font-medium">{s.label}</span>
-                  <span className={`text-xs ${settings.size === s.id ? 'text-cream-100' : 'text-muted'}`}>{s.hint}</span>
-                </button>
-              ))}
-            </div>
+            <SizePicker settings={settings} onChange={patch} />
           </div>
 
           <div>
@@ -359,7 +349,7 @@ export default function PhotoStudio() {
                 여백 <span className="font-normal text-muted">{Math.round(settings.padding * 100)}%</span>
               </label>
               <input id="photo-padding" type="range" min={0} max={30} step={1} value={Math.round(settings.padding * 100)} onChange={(e) => patch({ padding: Number(e.target.value) / 100 })} className="w-full accent-forest-700" />
-              <p className="mt-1 text-xs text-muted">스마트스토어·쿠팡 대표 이미지는 상품이 꽉 차 보이게 5~10%를 권장합니다.</p>
+              <p className="mt-1 text-xs text-muted">쇼핑몰 대표 이미지는 상품이 꽉 차 보이게 5~10%를 권장합니다.</p>
             </div>
           )}
 

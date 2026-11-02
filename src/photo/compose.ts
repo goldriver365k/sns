@@ -4,17 +4,36 @@
  */
 import type { Cutout } from './removeBg'
 
-export type SizeId = 'square' | 'portrait' | 'story' | 'wide' | 'original'
+export type SizeId = 'market' | 'square' | 'portrait' | 'story' | 'yt' | 'og' | 'wide' | 'original' | 'custom'
 export type BgKind = 'transparent' | 'color' | 'studio' | 'blur' | 'ai'
 export type ShadowKind = 'none' | 'floor' | 'soft'
 
-export const SIZES: { id: SizeId; label: string; hint: string; w: number; h: number }[] = [
-  { id: 'square', label: '정사각형 1:1', hint: '스마트스토어·쿠팡 대표 이미지', w: 1080, h: 1080 },
-  { id: 'portrait', label: '세로 4:5', hint: '인스타그램 게시물', w: 1080, h: 1350 },
-  { id: 'story', label: '세로 9:16', hint: '릴스·스토리·쇼츠', w: 1080, h: 1920 },
-  { id: 'wide', label: '가로 16:9', hint: '블로그·유튜브 썸네일', w: 1920, h: 1080 },
-  { id: 'original', label: '원본 그대로', hint: '배경만 바꾸고 크기·위치 유지', w: 0, h: 0 },
+export type SizeGroup = '쇼핑몰' | 'SNS' | '가로' | '기타'
+
+/** 결과 크기 (권장 크기 기준, 플랫폼 정책은 바뀔 수 있음) */
+export const SIZES: { id: SizeId; group: SizeGroup; label: string; hint: string; w: number; h: number }[] = [
+  { id: 'market', group: '쇼핑몰', label: '대표 이미지 1:1', hint: '스마트스토어·쿠팡 1000×1000', w: 1000, h: 1000 },
+  { id: 'square', group: 'SNS', label: '정사각 1:1', hint: '인스타 게시물 1080×1080', w: 1080, h: 1080 },
+  { id: 'portrait', group: 'SNS', label: '세로 4:5', hint: '인스타 게시물 1080×1350', w: 1080, h: 1350 },
+  { id: 'story', group: 'SNS', label: '세로 9:16', hint: '릴스·스토리·쇼츠 1080×1920', w: 1080, h: 1920 },
+  { id: 'yt', group: '가로', label: '유튜브 썸네일', hint: '16:9 1280×720', w: 1280, h: 720 },
+  { id: 'og', group: '가로', label: '블로그·페이스북 가로', hint: '1200×630', w: 1200, h: 630 },
+  { id: 'wide', group: '가로', label: '가로 16:9 고화질', hint: '1920×1080', w: 1920, h: 1080 },
+  { id: 'original', group: '기타', label: '원본 그대로', hint: '배경만 바꾸고 크기·위치 유지', w: 0, h: 0 },
+  { id: 'custom', group: '기타', label: '직접 입력', hint: '가로×세로 px', w: 0, h: 0 },
 ]
+
+/** 직접 입력 크기 범위 (px) */
+export const CUSTOM_MIN = 100
+export const CUSTOM_MAX = 4000
+
+/** 크기 이름 (예: "대표 이미지 1:1 · 1000×1000") */
+export function sizeLabel(s: Pick<PhotoSettings, 'size' | 'customW' | 'customH'>) {
+  const p = SIZES.find((x) => x.id === s.size)
+  if (!p) return ''
+  if (s.size === 'custom') return `직접 입력 · ${s.customW}×${s.customH}`
+  return p.w ? `${p.label} · ${p.w}×${p.h}` : p.label
+}
 
 export const BG_COLORS = [
   { value: '#ffffff', label: '흰색' },
@@ -34,9 +53,12 @@ export type PhotoSettings = {
   shadow: ShadowKind
   /** 테두리 여백 (짧은 변 대비, 0~0.3) */
   padding: number
+  /** 직접 입력 크기 (px) */
+  customW: number
+  customH: number
 }
 
-export const DEFAULT_SETTINGS: PhotoSettings = { size: 'square', bg: 'color', color: '#ffffff', shadow: 'floor', padding: 0.1 }
+export const DEFAULT_SETTINGS: PhotoSettings = { size: 'market', bg: 'color', color: '#ffffff', shadow: 'floor', padding: 0.1, customW: 1200, customH: 1200 }
 
 export type PhotoSource = {
   original: HTMLImageElement
@@ -47,9 +69,24 @@ export type PhotoSource = {
 
 /** 결과 캔버스 크기 */
 export function outputSize(src: PhotoSource, s: PhotoSettings) {
-  if (s.size === 'original') return { w: src.original.naturalWidth, h: src.original.naturalHeight }
-  const preset = SIZES.find((x) => x.id === s.size)!
+  return targetSize(s, src.original.naturalWidth, src.original.naturalHeight)
+}
+
+/** 설정과 원본 크기로 결과 크기를 정한다 (알 수 없는 크기 이름은 대표 이미지 크기로) */
+export function targetSize(s: Pick<PhotoSettings, 'size' | 'customW' | 'customH'>, originalW: number, originalH: number) {
+  if (s.size === 'original') return { w: originalW, h: originalH }
+  if (s.size === 'custom') {
+    const fit = (v: number) => Math.round(Math.min(CUSTOM_MAX, Math.max(CUSTOM_MIN, v || 1000)))
+    return { w: fit(s.customW), h: fit(s.customH) }
+  }
+  const preset = SIZES.find((x) => x.id === s.size) ?? SIZES[0]
   return { w: preset.w, h: preset.h }
+}
+
+/** AI 배경을 만들 모양: 결과 비율에 가장 가까운 것 */
+export function shapeFor(w: number, h: number): 'square' | 'portrait' | 'landscape' {
+  const r = w / h
+  return r > 1.15 ? 'landscape' : r < 0.87 ? 'portrait' : 'square'
 }
 
 /** 편집기에서 사용자가 옮긴 상품 위치 (자동 배치 기준). 없으면 자동 배치 그대로 */
