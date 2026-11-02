@@ -11,11 +11,13 @@ import { getDesign } from '../cards/designs'
 const LABELS: Record<string, string> = {
   openaiKey: 'OpenAI API 키 (OPENAI_API_KEY)',
   openaiModel: '모델 이름 (OPENAI_MODEL)',
-  imageModel: '이미지 모델 (OPENAI_IMAGE_MODEL)',
   reasoningEffort: '추론 정도 (OPENAI_REASONING_EFFORT)',
   adminEmails: '관리자 이메일 (ADMIN_EMAILS)',
   ttsModel: '털복이 음성 모델 (OPENAI_TTS_MODEL)',
   ttsVoice: '털복이 목소리 (OPENAI_TTS_VOICE)',
+  imageModel: '이미지 모델 — AI 배경 (OPENAI_IMAGE_MODEL)',
+  geminiKey: 'Gemini 키 — 제품 애니메이션 (GEMINI_API_KEY)',
+  geminiVideoModel: '영상 모델 — 제품 애니메이션 (GEMINI_VIDEO_MODEL)',
 }
 
 /** 서버(Netlify Functions)와 환경변수가 제대로 연결됐는지 확인하는 상자 */

@@ -50,6 +50,8 @@
 | `OPENAI_API_KEY` | OpenAI 키 | **비밀값**, 3단계(게시물 생성)부터 필요 |
 | `OPENAI_MODEL` | 사용할 모델 이름 | 3단계부터 필요. OpenAI 대시보드의 모델 목록에서 고른다 |
 | `OPENAI_IMAGE_MODEL` | 이미지 모델 이름 | **상품 사진 편집의 [✨ AI 배경]에 필요.** (게시물 [AI로 만들기]는 보류 중) OpenAI 대시보드의 이미지 모델 이름(예: gpt-image 계열). 계정 조직 인증이 필요할 수 있음 |
+| `GEMINI_API_KEY` | Google AI Studio API 키 | **비밀값.** 상품 사진 편집의 [🎞 영상](제품 애니메이션)에 필요. https://aistudio.google.com 에서 발급, **결제(유료 요금제) 등록 필요**(영상 모델은 무료 요금제 불가). 720p 1초 약 $0.10 |
+| `GEMINI_VIDEO_MODEL` | `gemini-omni-1.1-flash` | 제품 애니메이션 영상 모델 이름. (OpenAI Sora 2 API는 2026-09-24, Google Veo 3.1 미리보기는 2026-10-22에 종료되어 이 모델을 쓴다) |
 | `OPENAI_IMAGE_QUALITY` | `low` / `medium` / `high` | 선택. 기본 low(빠름). 높이면 30초 제한에 걸릴 수 있음 |
 | `OPENAI_REASONING_EFFORT` | `low` 등 | 선택. 추론형 모델일 때만 넣는다(응답 속도 향상). 일반 모델에 넣으면 오류 |
 | `FIREBASE_SERVICE_ACCOUNT` | 1-5 JSON 전체 | **비밀값**, 6단계(매일 자동 생성)부터 필요 |

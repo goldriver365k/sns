@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import AiBgPanel, { MAX_AI_BACKGROUNDS, type AiBackground } from '../components/AiBgPanel'
 import PhotoReelDialog, { type PhotoReelInput } from '../components/PhotoReelDialog'
+import ProductAnimatorDialog from '../components/ProductAnimatorDialog'
+import type { VideoAspect } from '../../shared/productVideo'
 import { btnGhost, btnLink, btnPrimary, fieldLabel } from '../components/ui'
 import { prepareImage, type PickedImage } from '../lib/images'
 import { canvasToPng, canShareImages, downloadPng, downloadZip, saveToGallery } from '../cards/export'
@@ -71,6 +73,8 @@ export default function PhotoStudio() {
   const [reelOpen, setReelOpen] = useState(false)
   const [reelBusy, setReelBusy] = useState(false)
   const [reelError, setReelError] = useState<string | null>(null)
+  // 제품 애니메이션(AI 영상)을 만들 사진
+  const [animate, setAnimate] = useState<{ item: Item; preview: string } | null>(null)
 
   useEffect(() => {
     try {
@@ -178,6 +182,24 @@ export default function PhotoStudio() {
   function addAiBg(bg: AiBackground) {
     setAiBgs((list) => [bg, ...list].slice(0, MAX_AI_BACKGROUNDS))
     setAiBgId(bg.id)
+  }
+
+  /** 영상용 설정: 투명 배경은 영상(JPEG)에 쓸 수 없어 흰 배경으로 바꾼다 */
+  const videoSettings = (size: PhotoSettings['size']): PhotoSettings =>
+    settings.bg === 'transparent' ? { ...settings, bg: 'color', color: '#ffffff', size } : { ...settings, size }
+
+  /** 제품 애니메이션 창 열기: AI에 보낼 모습 그대로 그린 작은 미리보기를 함께 넘긴다 */
+  function openAnimator(item: Item) {
+    const canvas = document.createElement('canvas')
+    composePhoto(canvas, sourceOf(item), videoSettings('square'))
+    setAnimate({ item, preview: canvas.toDataURL('image/jpeg', 0.7) })
+  }
+
+  /** AI 영상에 보낼 사진: 영상 비율(세로 9:16 / 가로 16:9)로 다시 그린 JPEG (base64) */
+  async function animatorImage(item: Item, aspect: VideoAspect) {
+    const canvas = document.createElement('canvas')
+    composePhoto(canvas, sourceOf(item), videoSettings(aspect === '16:9' ? 'wide' : 'story'))
+    return canvas.toDataURL('image/jpeg', 0.9).split(',')[1]
   }
 
   /** 완성 사진을 릴스 사진 칸 비율(4:5)로 다시 그려 자동 릴스 새 프로젝트로 옮기고 그 화면을 연다 */
@@ -442,11 +464,14 @@ export default function PhotoStudio() {
                     onRetry={() => update(item.id, { status: 'waiting', error: undefined })}
                     onSave={() => saveOne(item)}
                     onCopy={() => copyOne(item)}
+                    onAnimate={() => openAnimator(item)}
                   />
                 ))}
               </ul>
             </>
           )}
+
+          {animate && <ProductAnimatorDialog preview={animate.preview} renderImage={(aspect) => animatorImage(animate.item, aspect)} onClose={() => setAnimate(null)} />}
 
           {reelOpen && <PhotoReelDialog count={done.length} busy={reelBusy} error={reelError} onClose={() => !reelBusy && setReelOpen(false)} onSubmit={makeReel} />}
 
@@ -478,9 +503,10 @@ type CardProps = {
   onRetry: () => void
   onSave: () => void
   onCopy: () => void
+  onAnimate: () => void
 }
 
-function ResultCard({ item, index, settings, background, started, onRemove, onRetry, onSave, onCopy }: CardProps) {
+function ResultCard({ item, index, settings, background, started, onRemove, onRetry, onSave, onCopy, onAnimate }: CardProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   // 미리보기 = 저장 파일 (같은 함수로 그린다)
@@ -525,6 +551,9 @@ function ResultCard({ item, index, settings, background, started, onRemove, onRe
           </button>
           <button type="button" onClick={onCopy} className="flex-1 border-l border-cream-200 py-2 text-forest-700 hover:bg-cream-100">
             복사
+          </button>
+          <button type="button" onClick={onAnimate} title="AI 영상으로 움직이게" className="flex-1 border-l border-cream-200 py-2 text-forest-700 hover:bg-cream-100">
+            🎞 영상
           </button>
         </div>
       )}

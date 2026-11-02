@@ -2,6 +2,7 @@ import { auth } from './firebase'
 import type { GenerateRequest, GeneratedPost } from '../../shared/generate'
 import type { TteolbokCopy, TteolbokCopyRequest } from '../../shared/tteolbok'
 import type { KeywordCopyRequest, KeywordScene } from '../../shared/keyword'
+import type { ProductVideoRequest } from '../../shared/productVideo'
 
 /** 서버 함수로 게시물 1개를 생성한다. 실패하면 사용자에게 보여줄 한국어 메시지로 예외를 던진다. */
 export async function generatePost(req: GenerateRequest): Promise<GeneratedPost> {
@@ -115,4 +116,61 @@ export async function generateKeywordScenes(req: KeywordCopyRequest): Promise<Ke
     throw new Error(data?.error || `문구를 만들지 못했습니다. (HTTP ${res.status})`)
   }
   return data.scenes as KeywordScene[]
+}
+
+/** 제품 애니메이션(AI 영상) 서버 함수 호출 — 관리자 토큰을 붙여 보낸다 */
+async function callVideo(body: Record<string, unknown>) {
+  const user = auth?.currentUser
+  if (!user) throw new Error('로그인이 필요합니다.')
+  try {
+    return await fetch('/.netlify/functions/video', {
+      method: 'POST',
+      headers: { authorization: `Bearer ${await user.getIdToken()}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(35_000),
+    })
+  } catch (e) {
+    if (e instanceof Error && e.name === 'TimeoutError') throw new Error('응답이 너무 늦습니다. 다시 시도해 주세요.')
+    throw new Error('네트워크 연결을 확인한 뒤 다시 시도해 주세요.')
+  }
+}
+
+async function videoJson(body: Record<string, unknown>) {
+  const res = await callVideo(body)
+  const data = await res.json().catch(() => null)
+  if (!res.ok || !data) {
+    if (res.status === 404) throw new Error('영상 생성 서버를 찾지 못했습니다. 배포 로그의 Functions 항목을 확인해 주세요. (HTTP 404)')
+    throw new Error(data?.error || `영상 요청에 실패했습니다. (HTTP ${res.status})`)
+  }
+  return data
+}
+
+/** 영상 작업을 시작하고 작업 번호를 돌려준다 */
+export async function startProductVideo(req: ProductVideoRequest): Promise<string> {
+  return (await videoJson({ action: 'start', ...req })).id as string
+}
+
+export type ProductVideoStatus = { status: 'in_progress' | 'completed' | 'failed' | 'cancelled'; size?: number; parts?: number; error?: string }
+
+export async function productVideoStatus(id: string): Promise<ProductVideoStatus> {
+  return (await videoJson({ action: 'status', id })) as ProductVideoStatus
+}
+
+/** 완성된 영상을 조각으로 받아 MP4 파일로 합친다 */
+export async function downloadProductVideo(id: string, parts: number): Promise<Blob> {
+  const chunks: ArrayBuffer[] = []
+  for (let index = 0; index < parts; index++) {
+    const res = await callVideo({ action: 'part', id, index })
+    if (!res.ok) {
+      const data = await res.json().catch(() => null)
+      throw new Error(data?.error || `영상을 받지 못했습니다. (HTTP ${res.status})`)
+    }
+    chunks.push(await res.arrayBuffer())
+  }
+  return new Blob(chunks, { type: 'video/mp4' })
+}
+
+/** 다 받은 영상 작업을 Google 쪽에서 지운다(실패해도 무시) */
+export async function deleteProductVideo(id: string) {
+  await callVideo({ action: 'delete', id }).catch(() => null)
 }

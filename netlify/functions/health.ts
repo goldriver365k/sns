@@ -19,5 +19,8 @@ export default async (req: Request) => {
     adminEmails: process.env.ADMIN_EMAILS ? '있음' : '없음(기본값 사용)',
     ttsModel: process.env.OPENAI_TTS_MODEL || '설정 안 함(기본 gpt-4o-mini-tts)',
     ttsVoice: process.env.OPENAI_TTS_VOICE || '설정 안 함(기본 coral)',
+    imageModel: process.env.OPENAI_IMAGE_MODEL || '없음',
+    geminiKey: process.env.GEMINI_API_KEY ? '있음' : '없음',
+    geminiVideoModel: process.env.GEMINI_VIDEO_MODEL || '없음',
   })
 }
