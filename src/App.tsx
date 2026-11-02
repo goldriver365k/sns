@@ -13,6 +13,8 @@ const TodayContents = lazy(() => import('./pages/TodayContents'))
 const ContentCalendar = lazy(() => import('./pages/ContentCalendar'))
 const ImageLibrary = lazy(() => import('./pages/ImageLibrary'))
 const PhotoStudio = lazy(() => import('./pages/PhotoStudio'))
+const PhotoHome = lazy(() => import('./pages/PhotoHome'))
+const PhotoEditor = lazy(() => import('./pages/PhotoEditor'))
 const PastContents = lazy(() => import('./pages/PastContents'))
 const OpsSettings = lazy(() => import('./pages/OpsSettings'))
 const ReelsLayout = lazy(() => import('./pages/reels/ReelsLayout'))
@@ -45,7 +47,9 @@ export default function App() {
         <Route path="today" element={<TodayContents />} />
         <Route path="calendar" element={<ContentCalendar />} />
         <Route path="images" element={<ImageLibrary />} />
-        <Route path="photo" element={<PhotoStudio />} />
+        <Route path="photo" element={<PhotoHome />} />
+        <Route path="photo/edit" element={<PhotoEditor />} />
+        <Route path="photo/batch" element={<PhotoStudio />} />
         <Route path="history" element={<PastContents />} />
         <Route path="settings" element={<OpsSettings />} />
         <Route path="reels" element={<ReelsLayout />}>

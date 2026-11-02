@@ -1,0 +1,132 @@
+import { useEffect, useRef, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import PageHeader from '../components/PageHeader'
+import { prepareImage } from '../lib/images'
+import type { PhotoSettings } from '../photo/compose'
+import { openPhoto, useEditor, type EditorTool } from '../photo/editorStore'
+
+type Tile = { id: string; icon: string; label: string; desc: string; tool: EditorTool; preset?: Partial<PhotoSettings> }
+
+/** 홈 화면 도구: 누르면 사진을 고르고, 그 도구가 열린 편집기로 간다 */
+const TILES: Tile[] = [
+  { id: 'remove', icon: '✂️', label: '배경 지우기', desc: '상품만 깔끔하게', tool: 'background', preset: { bg: 'transparent', shadow: 'none' } },
+  { id: 'white', icon: '⬜', label: '흰 배경', desc: '스마트스토어·쿠팡 대표 이미지', tool: 'background', preset: { bg: 'color', color: '#ffffff', size: 'square', shadow: 'floor' } },
+  { id: 'ai', icon: '✨', label: 'AI 배경', desc: '대리석·카페·계절 장면', tool: 'background', preset: { bg: 'ai', shadow: 'floor' } },
+  { id: 'studio', icon: '💡', label: '스튜디오 배경', desc: '조명 받은 단색 배경', tool: 'background', preset: { bg: 'studio' } },
+  { id: 'shadow', icon: '🌗', label: 'AI 그림자', desc: '바닥·부드러운 그림자', tool: 'shadow' },
+  { id: 'resize', icon: '📐', label: '크기 바꾸기', desc: '1:1 · 4:5 · 9:16 · 16:9', tool: 'size' },
+  { id: 'text', icon: '🔤', label: '글자 넣기', desc: '가격·문구·할인 띠', tool: 'text' },
+  { id: 'video', icon: '🎞', label: '제품 영상 (AI)', desc: '사진을 움직이는 영상으로', tool: 'video' },
+  { id: 'reel', icon: '🎬', label: '릴스 만들기', desc: '자막·음악 넣은 MP4', tool: 'video' },
+]
+
+/** 상품 사진 편집 홈: 사진으로 시작 + 도구 타일 (Photoroom 홈 화면과 같은 흐름) */
+export default function PhotoHome() {
+  const navigate = useNavigate()
+  const { doc } = useEditor()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const pending = useRef<Tile | null>(null)
+  const [drag, setDrag] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function start(blob: Blob | undefined, tile: Tile | null) {
+    if (!blob) return
+    setError(null)
+    try {
+      const img = await prepareImage(blob, 'file')
+      openPhoto(img, tile?.tool ?? 'background', tile?.preset)
+      navigate('/photo/edit')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '사진을 열지 못했습니다.')
+    }
+  }
+
+  function pick(tile: Tile | null) {
+    pending.current = tile
+    fileRef.current?.click()
+  }
+
+  // 화면 어디서든 사진을 붙여넣으면 바로 편집 시작
+  useEffect(() => {
+    function onPaste(e: ClipboardEvent) {
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      if (!file) return
+      e.preventDefault()
+      start(file, null)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return (
+    <div className="mx-auto max-w-6xl">
+      <PageHeader title="상품 사진 편집" description="사진 한 장으로 판매용 상품 사진, AI 배경, 제품 영상, 릴스까지 만듭니다." />
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault()
+          setDrag(true)
+        }}
+        onDragLeave={() => setDrag(false)}
+        onDrop={(e) => {
+          e.preventDefault()
+          setDrag(false)
+          start([...e.dataTransfer.files].find((f) => f.type.startsWith('image/')), null)
+        }}
+        className={`flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed px-6 py-10 text-center transition sm:flex-row sm:justify-between sm:text-left ${drag ? 'border-forest-500 bg-forest-50' : 'border-cream-300 bg-white'}`}
+      >
+        <div>
+          <p className="text-xl font-bold text-forest-900">사진으로 시작</p>
+          <p className="mt-1 text-[15px] text-muted">상품 사진을 끌어다 놓거나 붙여넣으세요 (Ctrl+V). 배경은 자동으로 지워집니다.</p>
+        </div>
+        <button type="button" onClick={() => pick(null)} className="shrink-0 rounded-2xl bg-forest-700 px-7 py-4 text-[16px] font-semibold text-cream-50 hover:bg-forest-900">
+          ＋ 사진 고르기
+        </button>
+      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={(e) => {
+          start(e.target.files?.[0], pending.current)
+          e.target.value = ''
+        }}
+      />
+      {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+
+      {doc && (
+        <Link to="/photo/edit" className="mt-4 flex items-center gap-3 rounded-2xl border border-cream-300 bg-cream-50 p-3 hover:border-forest-500">
+          <img src={doc.original.url} alt="" className="h-14 w-14 rounded-lg object-cover" />
+          <span className="text-[15px] font-medium text-forest-900">편집하던 사진 이어서 하기 →</span>
+        </Link>
+      )}
+
+      <h2 className="mt-10 mb-3 text-lg font-bold text-forest-900">도구</h2>
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        {TILES.map((t) => (
+          <li key={t.id}>
+            <button type="button" onClick={() => pick(t)} className="flex h-full w-full flex-col items-start gap-2 rounded-2xl border border-cream-300 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-forest-500">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cream-100 text-xl" aria-hidden>
+                {t.icon}
+              </span>
+              <span className="text-[15px] font-semibold text-ink">{t.label}</span>
+              <span className="text-xs text-muted">{t.desc}</span>
+            </button>
+          </li>
+        ))}
+        <li>
+          <Link to="/photo/batch" className="flex h-full w-full flex-col items-start gap-2 rounded-2xl border border-cream-300 bg-white p-4 transition hover:-translate-y-0.5 hover:border-forest-500">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-cream-100 text-xl" aria-hidden>
+              🗂
+            </span>
+            <span className="text-[15px] font-semibold text-ink">여러 장 한꺼번에</span>
+            <span className="text-xs text-muted">최대 30장, 같은 설정으로</span>
+          </Link>
+        </li>
+      </ul>
+      <p className="mt-6 text-xs text-muted">배경 지우기는 이 기기 안에서 처리합니다(사진을 서버로 보내지 않음). AI 배경·제품 영상만 AI 서버를 쓰며 사용료가 듭니다.</p>
+    </div>
+  )
+}

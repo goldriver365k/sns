@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import AiBgPanel, { MAX_AI_BACKGROUNDS, type AiBackground } from '../components/AiBgPanel'
 import PhotoReelDialog, { type PhotoReelInput } from '../components/PhotoReelDialog'
@@ -279,9 +279,12 @@ export default function PhotoStudio() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      <Link to="/photo" className="mb-3 inline-block text-sm font-medium text-forest-700 hover:underline">
+        ← 상품 사진 편집 홈
+      </Link>
       <PageHeader
-        title="상품 사진 편집"
-        description="배경을 지우고 흰 배경·스튜디오·AI 배경과 그림자를 넣어 판매용 사진으로 만들고, 릴스·영상으로도 이어 만듭니다. 배경 제거는 서버로 보내지 않고 이 기기 안에서 처리합니다."
+        title="여러 장 한꺼번에 편집"
+        description="여러 장을 같은 크기·배경·그림자로 한 번에 만듭니다. 한 장씩 자세히 고치려면 홈에서 [사진 고르기]로 편집기를 여세요. 배경 제거는 이 기기 안에서 처리합니다."
       />
 
       <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-start">

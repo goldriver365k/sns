@@ -52,8 +52,54 @@ export function outputSize(src: PhotoSource, s: PhotoSettings) {
   return { w: preset.w, h: preset.h }
 }
 
-/** 결과 1장을 캔버스에 그린다 */
-export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: PhotoSettings) {
+/** 편집기에서 사용자가 옮긴 상품 위치 (자동 배치 기준). 없으면 자동 배치 그대로 */
+export type ProductTransform = {
+  /** 가로·세로 이동 (결과 크기 대비 비율) */
+  dx: number
+  dy: number
+  /** 크기 배율 */
+  scale: number
+  /** 회전 (도) */
+  rotate: number
+}
+
+export const NO_TRANSFORM: ProductTransform = { dx: 0, dy: 0, scale: 1, rotate: 0 }
+
+export type TextFont = 'pretendard' | 'jua' | 'maruburi' | 'cafe24'
+
+export const TEXT_FONTS: { value: TextFont; label: string; family: string }[] = [
+  { value: 'pretendard', label: '고딕', family: 'Pretendard Variable' },
+  { value: 'jua', label: '주아', family: 'Jua' },
+  { value: 'maruburi', label: '명조', family: 'ACM MaruBuri' },
+  { value: 'cafe24', label: '써라운드', family: 'ACM Cafe24 SsurroundAir' },
+]
+
+/** 사진 위에 얹는 글자 */
+export type TextLayer = {
+  id: string
+  text: string
+  /** 글자 가운데 위치 (결과 크기 대비 비율 0~1) */
+  x: number
+  y: number
+  /** 글자 크기: 결과 가로 1080px 기준 */
+  size: number
+  color: string
+  font: TextFont
+  bold: boolean
+  /** 글자 뒤 둥근 띠 색 (빈 값이면 띠 없음) */
+  box: string
+}
+
+/** 그린 결과의 요소 위치 (편집기에서 누른 곳 찾기·선택 상자 표시용, 결과 픽셀 기준) */
+export type DrawnLayout = {
+  w: number
+  h: number
+  product: { cx: number; cy: number; w: number; h: number; rotate: number }
+  texts: { id: string; cx: number; cy: number; w: number; h: number }[]
+}
+
+/** 결과 1장을 캔버스에 그린다. 편집기에서는 상품 위치·글자도 함께 받는다 */
+export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: PhotoSettings, edit?: { transform?: ProductTransform; texts?: TextLayer[] }): DrawnLayout {
   const { w, h } = outputSize(src, s)
   canvas.width = w
   canvas.height = h
@@ -64,39 +110,14 @@ export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: Pho
   drawBackground(ctx, w, h, src, s)
 
   const product = src.cutout.canvas
-  let pw: number
-  let ph: number
-  let px: number
-  let py: number
-  if (s.size === 'original') {
-    // 원본 자리 그대로
-    pw = product.width
-    ph = product.height
-    px = src.cutout.x
-    py = src.cutout.y
-  } else if (s.bg === 'ai' && src.background) {
-    // AI 배경: 비워 둔 바닥·테이블 면에 올려놓듯 아래쪽 가운데에 세운다
-    const pad = Math.round(Math.min(w, h) * s.padding)
-    const boxW = w - pad * 2
-    const boxH = h * 0.62 - pad
-    const scale = Math.min(boxW / product.width, boxH / product.height)
-    pw = product.width * scale
-    ph = product.height * scale
-    px = (w - pw) / 2
-    py = h * 0.88 - ph
-  } else {
-    // 여백 안에 들어가게 줄이고 가운데 배치
-    const pad = Math.round(Math.min(w, h) * s.padding)
-    const boxW = w - pad * 2
-    const boxH = h - pad * 2
-    const scale = Math.min(boxW / product.width, boxH / product.height)
-    pw = product.width * scale
-    ph = product.height * scale
-    px = (w - pw) / 2
-    py = (h - ph) / 2
-  }
+  const box = autoBox(src, s, w, h)
+  const t = edit?.transform ?? NO_TRANSFORM
+  const pw = box.w * t.scale
+  const ph = box.h * t.scale
+  const cx = box.x + box.w / 2 + t.dx * w
+  const cy = box.y + box.h / 2 + t.dy * h
 
-  if (s.shadow === 'floor') drawFloorShadow(ctx, px, py, pw, ph)
+  if (s.shadow === 'floor') drawFloorShadow(ctx, cx - pw / 2, cy - ph / 2, pw, ph)
   ctx.save()
   if (s.shadow === 'soft') {
     const unit = Math.max(pw, ph)
@@ -104,8 +125,65 @@ export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: Pho
     ctx.shadowBlur = unit * 0.06
     ctx.shadowOffsetY = unit * 0.025
   }
-  ctx.drawImage(product, px, py, pw, ph)
+  ctx.translate(cx, cy)
+  ctx.rotate((t.rotate * Math.PI) / 180)
+  ctx.drawImage(product, -pw / 2, -ph / 2, pw, ph)
   ctx.restore()
+
+  const texts = (edit?.texts ?? []).map((layer) => drawText(ctx, layer, w, h))
+  return { w, h, product: { cx, cy, w: pw, h: ph, rotate: t.rotate }, texts }
+}
+
+/** 자동 배치 자리: 원본 그대로 / AI 배경(바닥에 세움) / 여백 안 가운데 */
+function autoBox(src: PhotoSource, s: PhotoSettings, w: number, h: number) {
+  const product = src.cutout.canvas
+  if (s.size === 'original') return { x: src.cutout.x, y: src.cutout.y, w: product.width, h: product.height }
+  const pad = Math.round(Math.min(w, h) * s.padding)
+  const boxW = w - pad * 2
+  if (s.bg === 'ai' && src.background) {
+    // AI 배경: 비워 둔 바닥·테이블 면에 올려놓듯 아래쪽 가운데에 세운다
+    const scale = Math.min(boxW / product.width, (h * 0.62 - pad) / product.height)
+    const pw = product.width * scale
+    const ph = product.height * scale
+    return { x: (w - pw) / 2, y: h * 0.88 - ph, w: pw, h: ph }
+  }
+  // 여백 안에 들어가게 줄이고 가운데 배치
+  const scale = Math.min(boxW / product.width, (h - pad * 2) / product.height)
+  const pw = product.width * scale
+  const ph = product.height * scale
+  return { x: (w - pw) / 2, y: (h - ph) / 2, w: pw, h: ph }
+}
+
+export const fontFamily = (f: TextFont) => TEXT_FONTS.find((x) => x.value === f)?.family ?? 'Pretendard Variable'
+export const fontSpec = (layer: Pick<TextLayer, 'font' | 'bold'>, px: number) => `${layer.bold ? 700 : 400} ${px}px "${fontFamily(layer.font)}"`
+
+/** 글자 1개(여러 줄 가능)를 그리고 차지한 자리를 돌려준다 */
+function drawText(ctx: CanvasRenderingContext2D, layer: TextLayer, w: number, h: number) {
+  const px = layer.size * (w / 1080)
+  const lines = (layer.text || ' ').split('\n')
+  const lineH = px * 1.25
+  ctx.save()
+  ctx.font = fontSpec(layer, px)
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  const textW = Math.max(...lines.map((l) => ctx.measureText(l).width), px * 0.5)
+  const textH = lineH * lines.length
+  const cx = layer.x * w
+  const cy = layer.y * h
+  const padX = layer.box ? px * 0.55 : px * 0.1
+  const padY = layer.box ? px * 0.3 : px * 0.05
+  const bw = textW + padX * 2
+  const bh = textH + padY * 2
+  if (layer.box) {
+    ctx.fillStyle = layer.box
+    ctx.beginPath()
+    ctx.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, Math.min(bh / 2, px * 0.6))
+    ctx.fill()
+  }
+  ctx.fillStyle = layer.color
+  lines.forEach((l, i) => ctx.fillText(l, cx, cy - textH / 2 + lineH * (i + 0.5)))
+  ctx.restore()
+  return { id: layer.id, cx, cy, w: bw, h: bh }
 }
 
 /** 이미지를 빈틈없이 채우도록(cover) 가운데 맞춰 그린다 */
