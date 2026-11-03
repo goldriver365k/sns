@@ -10,7 +10,7 @@ export async function openDesign(item: DesignListItem) {
   if (!orig || !mask) throw new Error('저장된 사진을 불러오지 못했습니다. 네트워크를 확인해 주세요.')
   const cutout = cutoutFromMask(orig, mask)
   const original: PickedImage = { id: item.originalId, url: orig.src, el: orig, source: 'file', width: orig.naturalWidth, height: orig.naturalHeight }
-  const bg: AiBackground | null = bgEl && item.aiBg ? { id: `saved-${item.aiBg.id}`, url: bgEl.src, el: bgEl, prompt: item.aiBg.prompt } : null
+  const bg: AiBackground | null = bgEl && item.aiBg ? { id: `saved-${item.aiBg.id}`, url: bgEl.src, el: bgEl, prompt: item.aiBg.prompt, kind: item.aiBg.kind ?? 'ai' } : null
   openSaved(
     {
       original,

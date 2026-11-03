@@ -53,7 +53,8 @@ export default function EditorStage({ src, settings, transform, texts, selected,
 
   useLayoutEffect(() => {
     if (!canvasRef.current) return
-    setLayout(composePhoto(canvasRef.current, src, settings, { transform, texts }))
+    // 화면에는 긴 변 1600px로 줄여 그린다(저장할 때는 원래 크기). 좌표는 결과 크기 기준이라 그대로 맞는다
+    setLayout(composePhoto(canvasRef.current, src, settings, { transform, texts }, { maxSide: 1600 }))
   }, [src, settings, transform, texts, fontTick])
 
   // 화면에 줄여 보이는 비율 (결과 픽셀 → 화면 픽셀)

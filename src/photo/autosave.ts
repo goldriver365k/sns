@@ -83,7 +83,9 @@ async function saveOnce(cur: EditorDoc, d: DesignState, aiBgs: AiBackground[]) {
   }
 
   // AI 배경: 이 디자인에 처음 쓰는 배경이면 올린다
-  const bg = d.settings.bg === 'ai' ? aiBgs.find((b) => b.id === d.aiBgId) ?? null : null
+  // AI 배경·내 사진 배경: 고른 종류와 맞는 것만
+  const kind = d.settings.bg === 'ai' || d.settings.bg === 'image' ? d.settings.bg : null
+  const bg = kind ? aiBgs.find((b) => b.id === d.aiBgId && (b.kind ?? 'ai') === kind) ?? null : null
   let stored = getEditor().doc?.storedBgs ?? {}
   let aiBg: SavedDesign['aiBg'] = null
   if (bg) {
@@ -94,7 +96,7 @@ async function saveOnce(cur: EditorDoc, d: DesignState, aiBgs: AiBackground[]) {
       stored = { ...stored, [bg.id]: id }
       patchDoc({ storedBgs: stored })
     }
-    aiBg = { id, prompt: bg.prompt }
+    aiBg = { id, prompt: bg.prompt, kind: bg.kind ?? 'ai' }
   }
 
   await saveDesignDoc(
@@ -125,7 +127,7 @@ async function saveOnce(cur: EditorDoc, d: DesignState, aiBgs: AiBackground[]) {
 async function thumbnail(cur: EditorDoc, d: DesignState, background: HTMLImageElement | null) {
   await Promise.all(d.texts.map((t) => document.fonts.load(fontSpec(t, 40), t.text || ' ').catch(() => null)))
   const full = document.createElement('canvas')
-  composePhoto(full, { original: cur.original.el, cutout: cur.cutout!, background }, d.settings, { transform: d.transform, texts: d.texts })
+  composePhoto(full, { original: cur.original.el, cutout: cur.cutout!, background }, d.settings, { transform: d.transform, texts: d.texts }, { maxSide: THUMB_SIDE * 2 })
   const k = Math.min(1, THUMB_SIDE / Math.max(full.width, full.height))
   const c = document.createElement('canvas')
   c.width = Math.round(full.width * k)

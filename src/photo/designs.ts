@@ -19,7 +19,8 @@ export type SavedDesign = {
   originalId: string
   maskId: string
   /** AI 배경을 썼으면 그 이미지 */
-  aiBg: { id: string; prompt: string } | null
+  /** kind: ai(AI가 만든 배경) / image(사용자가 올린 사진) — 예전 저장분은 없으면 ai */
+  aiBg: { id: string; prompt: string; kind?: 'ai' | 'image' } | null
   settings: PhotoSettings
   transform: ProductTransform
   texts: TextLayer[]

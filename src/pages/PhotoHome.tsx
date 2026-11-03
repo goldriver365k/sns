@@ -3,10 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import MyDesigns from '../components/photo/MyDesigns'
 import { prepareImage } from '../lib/images'
-import { SIZES, type PhotoSettings, type SizeId } from '../photo/compose'
+import { SIZES, type PhotoSettings, type SizeId, type TextLayer } from '../photo/compose'
+import { POSTER_SETS } from '../components/photo/TextPanel'
 import { getEditor, openPhoto, useEditor, type EditorTool } from '../photo/editorStore'
 
-type Tile = { id: string; icon: string; label: string; desc: string; tool: EditorTool; preset?: Partial<PhotoSettings> }
+type Tile = { id: string; icon: string; label: string; desc: string; tool: EditorTool; preset?: Partial<PhotoSettings>; texts?: Omit<TextLayer, 'id'>[] }
 
 /** 홈 화면 도구: 누르면 사진을 고르고, 그 도구가 열린 편집기로 간다 */
 const TILES: Tile[] = [
@@ -17,6 +18,8 @@ const TILES: Tile[] = [
   { id: 'shadow', icon: '🌗', label: 'AI 그림자', desc: '바닥·부드러운 그림자', tool: 'shadow' },
   { id: 'resize', icon: '📐', label: '크기 바꾸기', desc: '쇼핑몰·인스타·유튜브·직접 입력', tool: 'size' },
   { id: 'text', icon: '🔤', label: '글자 넣기', desc: '가격·문구·할인 띠', tool: 'text' },
+  // 포스터: 사진을 그대로 배경으로 깔고 A4 세로 + 행사 포스터 문구로 시작 (글자 패널에서 세트·글꼴 변경)
+  { id: 'poster', icon: '🪧', label: '포스터 만들기', desc: 'A4·A3 인쇄용, 사진 배경 + 글자', tool: 'text', preset: { size: 'a4', bg: 'photo', showProduct: false }, texts: POSTER_SETS[0].layers },
   { id: 'video', icon: '🎞', label: '제품 영상 (AI)', desc: '사진을 움직이는 영상으로', tool: 'video' },
   { id: 'reel', icon: '🎬', label: '릴스 만들기', desc: '자막·음악 넣은 MP4', tool: 'video' },
 ]
@@ -37,7 +40,7 @@ export default function PhotoHome() {
     setError(null)
     try {
       const img = await prepareImage(blob, 'file')
-      openPhoto(img, tile?.tool ?? 'background', { size, ...tile?.preset })
+      openPhoto(img, tile?.tool ?? 'background', { size, ...tile?.preset }, undefined, tile?.texts)
       navigate('/photo/edit')
     } catch (e) {
       setError(e instanceof Error ? e.message : '사진을 열지 못했습니다.')
@@ -121,7 +124,7 @@ export default function PhotoHome() {
       )}
 
       <h2 className="mt-10 mb-3 text-lg font-bold text-forest-900">도구</h2>
-      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {TILES.map((t) => (
           <li key={t.id}>
             <button type="button" onClick={() => pick(t)} className="flex h-full w-full flex-col items-start gap-2 rounded-2xl border border-cream-300 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-forest-500">

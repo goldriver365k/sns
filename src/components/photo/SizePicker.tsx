@@ -1,6 +1,6 @@
 import { CUSTOM_MAX, CUSTOM_MIN, SIZES, type PhotoSettings, type SizeGroup } from '../../photo/compose'
 
-const GROUPS: SizeGroup[] = ['쇼핑몰', 'SNS', '가로', '기타']
+const GROUPS: SizeGroup[] = ['쇼핑몰', 'SNS', '가로', '인쇄', '기타']
 
 type Props = {
   settings: PhotoSettings

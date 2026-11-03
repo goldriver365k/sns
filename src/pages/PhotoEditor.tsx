@@ -28,6 +28,8 @@ const BG_KINDS: { value: BgKind; label: string }[] = [
   { value: 'studio', label: '스튜디오' },
   { value: 'blur', label: '원본 흐리게' },
   { value: 'transparent', label: '투명' },
+  { value: 'photo', label: '원본 사진' },
+  { value: 'image', label: '내 사진' },
   { value: 'ai', label: '✨ AI 배경' },
 ]
 
@@ -65,6 +67,7 @@ export default function PhotoEditor() {
   const [reelBusy, setReelBusy] = useState(false)
   const [reelError, setReelError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const bgFileRef = useRef<HTMLInputElement>(null)
   // 내 디자인 자동 저장 (배경을 지운 뒤부터)
   const autosave = useDesignAutosave(doc, design)
   // 손을 뗄 때 기록할 최신 편집 내용
@@ -171,7 +174,10 @@ export default function PhotoEditor() {
 
   if (!doc) return <Navigate to="/photo" replace />
 
-  const aiBg = design.settings.bg === 'ai' ? (aiBgs.find((b) => b.id === design.aiBgId)?.el ?? null) : null
+  // AI 배경·내 사진 배경 (고른 종류와 맞는 것만)
+  const bgKind = design.settings.bg === 'image' ? 'image' : design.settings.bg === 'ai' ? 'ai' : null
+  const aiBg = bgKind ? (aiBgs.find((b) => b.id === design.aiBgId && (b.kind ?? 'ai') === bgKind)?.el ?? null) : null
+  const myPhotos = aiBgs.filter((b) => b.kind === 'image')
   const src: PhotoSource | null = doc.cutout ? { original: doc.original.el, cutout: doc.cutout, background: aiBg } : null
   const selectedText = selected && selected !== 'product' ? selected : null
 
@@ -186,6 +192,25 @@ export default function PhotoEditor() {
   function addAiBg(bg: AiBackground) {
     setEditor((s) => ({ aiBgs: [bg, ...s.aiBgs].slice(0, MAX_AI_BACKGROUNDS) }))
     update({ aiBgId: bg.id })
+  }
+
+  /** 내 사진을 배경으로 올리기 */
+  async function addBgPhoto(file: Blob) {
+    try {
+      const img = await prepareImage(file, 'file')
+      const bg: AiBackground = { id: img.id, url: img.url, el: img.el, prompt: '내 사진', kind: 'image' }
+      setEditor((s) => ({ aiBgs: [bg, ...s.aiBgs].slice(0, MAX_AI_BACKGROUNDS * 2) }))
+      update({ aiBgId: bg.id, settings: { ...design.settings, bg: 'image' } })
+    } catch (e) {
+      flash(e instanceof Error ? e.message : '사진을 넣지 못했습니다.')
+    }
+  }
+
+  /** 포스터 문구 세트처럼 여러 글자를 한 번에 */
+  function addTexts(layers: Omit<TextLayer, 'id'>[]) {
+    const added = layers.map((l) => ({ ...l, id: newId() }))
+    update({ texts: [...design.texts, ...added] })
+    setSelected(added[0]?.id ?? null)
   }
 
   function addText(layer: Omit<TextLayer, 'id'>) {
@@ -352,7 +377,14 @@ export default function PhotoEditor() {
             <div className="space-y-4">
               <div className="flex flex-wrap gap-1.5">
                 {BG_KINDS.map((b) => (
-                  <button key={b.value} type="button" aria-pressed={design.settings.bg === b.value} onClick={() => patchSettings({ bg: b.value })} className={chip(design.settings.bg === b.value)}>
+                  <button
+                    key={b.value}
+                    type="button"
+                    aria-pressed={design.settings.bg === b.value}
+                    // 원본 사진을 배경으로 쓰면 상품이 두 번 보이므로 상품은 숨긴다(다시 켤 수 있음)
+                    onClick={() => patchSettings(b.value === 'photo' ? { bg: 'photo', showProduct: false } : { bg: b.value })}
+                    className={chip(design.settings.bg === b.value)}
+                  >
                     {b.label}
                   </button>
                 ))}
@@ -369,7 +401,7 @@ export default function PhotoEditor() {
                 <>
                   <AiBgPanel
                     shape={shapeFor(out.w, out.h)}
-                    backgrounds={aiBgs}
+                    backgrounds={aiBgs.filter((b) => b.kind !== 'image')}
                     selectedId={design.aiBgId}
                     onAdd={addAiBg}
                     onSelect={(id) => update({ aiBgId: id })}
@@ -378,6 +410,37 @@ export default function PhotoEditor() {
                 </>
               )}
               {design.settings.bg === 'transparent' && <p className="text-xs text-muted">투명 배경은 PNG로 저장되어 다른 디자인에 그대로 얹을 수 있습니다.</p>}
+              {design.settings.bg === 'photo' && <p className="text-xs text-muted">처음 넣은 사진을 그대로 배경으로 씁니다. 포스터처럼 사진 위에 글자만 얹을 때 좋습니다.</p>}
+              {design.settings.bg === 'image' && (
+                <div className="space-y-2 rounded-xl border border-cream-300 bg-white p-3">
+                  <button type="button" onClick={() => bgFileRef.current?.click()} className="w-full rounded-lg bg-forest-700 px-4 py-2 text-sm font-semibold text-cream-50 hover:bg-forest-900">
+                    ＋ 배경으로 쓸 사진 올리기
+                  </button>
+                  {myPhotos.length > 0 && (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {myPhotos.map((b, i) => (
+                        <button key={b.id} type="button" aria-label={`내 사진 배경 ${i + 1}`} aria-pressed={b.id === design.aiBgId} onClick={() => update({ aiBgId: b.id })} className={`overflow-hidden rounded-lg border-2 ${b.id === design.aiBgId ? 'border-forest-700' : 'border-transparent'}`}>
+                          <img src={b.url} alt="" className="aspect-square w-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {!aiBg && <p className="text-xs text-muted">사진을 올리기 전까지는 스튜디오 배경으로 보여 줍니다.</p>}
+                  <p className="text-xs text-muted">가게 사진, 풍경, 행사장 사진 등을 배경으로 깔고 상품과 글자를 얹습니다.</p>
+                </div>
+              )}
+              <ProductToggle settings={design.settings} onChange={patchSettings} />
+              <input
+                ref={bgFileRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) addBgPhoto(f)
+                  e.target.value = ''
+                }}
+              />
             </div>
           )}
 
@@ -395,6 +458,7 @@ export default function PhotoEditor() {
           {tool === 'size' && (
             <div className="space-y-5">
               <SizePicker settings={design.settings} onChange={patchSettings} />
+              <ProductToggle settings={design.settings} onChange={patchSettings} />
               {design.settings.size !== 'original' && (
                 <Slider label="여백" value={Math.round(design.settings.padding * 100)} min={0} max={30} unit="%" onChange={(v) => setDesign({ ...design, settings: { ...design.settings, padding: v / 100 } })} onDone={() => commit(design)} />
               )}
@@ -407,7 +471,7 @@ export default function PhotoEditor() {
             </div>
           )}
 
-          {tool === 'text' && <TextPanel texts={design.texts} selectedId={selectedText} onAdd={addText} onSelect={setSelected} onChange={changeText} onRemove={removeText} />}
+          {tool === 'text' && <TextPanel texts={design.texts} selectedId={selectedText} onAdd={addText} onAddMany={addTexts} onSelect={setSelected} onChange={changeText} onRemove={removeText} />}
 
           {tool === 'video' && (
             <div className="space-y-3">
@@ -529,5 +593,15 @@ function Slider({ label, value, min, max, unit, onChange, onDone }: { label: str
       </label>
       <input id={id} type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} onPointerUp={onDone} onKeyUp={onDone} onBlur={onDone} className="w-full accent-forest-700" />
     </div>
+  )
+}
+
+/** 상품(배경을 지운 사진) 보이기 — 포스터처럼 배경 사진과 글자만 쓸 때 끈다 */
+function ProductToggle({ settings, onChange }: { settings: PhotoSettings; onChange: (p: Partial<PhotoSettings>) => void }) {
+  return (
+    <label className="flex items-center gap-2 text-sm text-ink">
+      <input type="checkbox" checked={settings.showProduct !== false} onChange={(e) => onChange({ showProduct: e.target.checked })} className="h-4 w-4 accent-forest-700" />
+      배경을 지운 상품 보이기
+    </label>
   )
 }

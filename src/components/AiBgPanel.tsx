@@ -3,7 +3,8 @@ import { generateImage } from '../lib/api'
 import { inputBase } from './ui'
 
 /** 만든 AI 배경 (이번 작업에서만 보관) */
-export type AiBackground = { id: string; url: string; el: HTMLImageElement; prompt: string }
+/** kind가 image면 사용자가 올린 내 사진 배경 (없으면 AI가 만든 배경) */
+export type AiBackground = { id: string; url: string; el: HTMLImageElement; prompt: string; kind?: 'ai' | 'image' }
 
 /** 자주 쓰는 촬영 장면 (AI에 보낼 설명) */
 const SCENES = [

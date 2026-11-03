@@ -3,12 +3,14 @@
  * 미리보기와 저장 파일이 같은 함수를 쓰므로 화면에 보이는 그대로 저장된다.
  */
 import type { Cutout } from './removeBg'
+import './fontFaces'
 
-export type SizeId = 'market' | 'square' | 'portrait' | 'story' | 'yt' | 'og' | 'wide' | 'original' | 'custom'
-export type BgKind = 'transparent' | 'color' | 'studio' | 'blur' | 'ai'
+export type SizeId = 'market' | 'square' | 'portrait' | 'story' | 'yt' | 'og' | 'wide' | 'a4' | 'a4l' | 'a3' | 'a3l' | 'original' | 'custom'
+/** photo: 원본 사진 그대로 / image: 따로 올린 내 사진 / ai: AI가 만든 배경 */
+export type BgKind = 'transparent' | 'color' | 'studio' | 'blur' | 'photo' | 'image' | 'ai'
 export type ShadowKind = 'none' | 'floor' | 'soft'
 
-export type SizeGroup = '쇼핑몰' | 'SNS' | '가로' | '기타'
+export type SizeGroup = '쇼핑몰' | 'SNS' | '가로' | '인쇄' | '기타'
 
 /** 결과 크기 (권장 크기 기준, 플랫폼 정책은 바뀔 수 있음) */
 export const SIZES: { id: SizeId; group: SizeGroup; label: string; hint: string; w: number; h: number }[] = [
@@ -19,6 +21,11 @@ export const SIZES: { id: SizeId; group: SizeGroup; label: string; hint: string;
   { id: 'yt', group: '가로', label: '유튜브 썸네일', hint: '16:9 1280×720', w: 1280, h: 720 },
   { id: 'og', group: '가로', label: '블로그·페이스북 가로', hint: '1200×630', w: 1200, h: 630 },
   { id: 'wide', group: '가로', label: '가로 16:9 고화질', hint: '1920×1080', w: 1920, h: 1080 },
+  // 인쇄: A4는 300dpi, A3는 휴대폰 브라우저 캔버스 한도(약 1,670만 화소) 안에 들도록 250dpi
+  { id: 'a4', group: '인쇄', label: 'A4 세로 포스터', hint: '210×297mm · 300dpi', w: 2480, h: 3508 },
+  { id: 'a4l', group: '인쇄', label: 'A4 가로', hint: '297×210mm · 300dpi', w: 3508, h: 2480 },
+  { id: 'a3', group: '인쇄', label: 'A3 세로 포스터', hint: '297×420mm · 250dpi', w: 2923, h: 4134 },
+  { id: 'a3l', group: '인쇄', label: 'A3 가로', hint: '420×297mm · 250dpi', w: 4134, h: 2923 },
   { id: 'original', group: '기타', label: '원본 그대로', hint: '배경만 바꾸고 크기·위치 유지', w: 0, h: 0 },
   { id: 'custom', group: '기타', label: '직접 입력', hint: '가로×세로 px', w: 0, h: 0 },
 ]
@@ -56,14 +63,16 @@ export type PhotoSettings = {
   /** 직접 입력 크기 (px) */
   customW: number
   customH: number
+  /** 상품(배경을 지운 사진)을 보일지 — 포스터처럼 배경 사진과 글자만 쓸 때 끈다 */
+  showProduct: boolean
 }
 
-export const DEFAULT_SETTINGS: PhotoSettings = { size: 'market', bg: 'color', color: '#ffffff', shadow: 'floor', padding: 0.1, customW: 1200, customH: 1200 }
+export const DEFAULT_SETTINGS: PhotoSettings = { size: 'market', bg: 'color', color: '#ffffff', shadow: 'floor', padding: 0.1, customW: 1200, customH: 1200, showProduct: true }
 
 export type PhotoSource = {
   original: HTMLImageElement
   cutout: Cutout
-  /** AI 배경 이미지 (배경 종류가 'ai'일 때). 없으면 스튜디오 배경으로 그린다 */
+  /** AI 배경·내 사진 배경 이미지 (배경 종류가 'ai'·'image'일 때). 없으면 스튜디오 배경으로 그린다 */
   background?: HTMLImageElement | null
 }
 
@@ -102,14 +111,40 @@ export type ProductTransform = {
 
 export const NO_TRANSFORM: ProductTransform = { dx: 0, dy: 0, scale: 1, rotate: 0 }
 
-export type TextFont = 'pretendard' | 'jua' | 'maruburi' | 'cafe24'
+export type TextFont =
+  | 'pretendard' | 'notosans' | 'nanumgothic' | 'dohyeon' | 'blackhan' | 'gowundodum'
+  | 'maruburi' | 'nanummyeongjo' | 'notoserif' | 'gowunbatang' | 'songmyung'
+  | 'jua' | 'cafe24' | 'nanumpen' | 'gaegu' | 'dongle' | 'yeonsung' | 'sunflower' | 'dokdo'
 
-export const TEXT_FONTS: { value: TextFont; label: string; family: string }[] = [
-  { value: 'pretendard', label: '고딕', family: 'Pretendard Variable' },
-  { value: 'jua', label: '주아', family: 'Jua' },
-  { value: 'maruburi', label: '명조', family: 'ACM MaruBuri' },
-  { value: 'cafe24', label: '써라운드', family: 'ACM Cafe24 SsurroundAir' },
+/**
+ * 글자에 쓰는 글꼴 — 모두 상업적으로 무료 (SIL OFL 1.1, 써라운드에어만 카페24 무료 글꼴 약관).
+ * 파일은 이 사이트에서 직접 제공하고, 쓰는 글자 부분만 내려받는다(fontFaces.ts).
+ */
+export const TEXT_FONTS: { value: TextFont; label: string; family: string; group: '고딕' | '명조' | '손글씨·디자인' }[] = [
+  { value: 'pretendard', label: '프리텐다드', family: 'Pretendard Variable', group: '고딕' },
+  { value: 'notosans', label: '본고딕', family: 'Noto Sans KR', group: '고딕' },
+  { value: 'nanumgothic', label: '나눔고딕', family: 'Nanum Gothic', group: '고딕' },
+  { value: 'dohyeon', label: '도현', family: 'Do Hyeon', group: '고딕' },
+  { value: 'blackhan', label: '검은고딕', family: 'Black Han Sans', group: '고딕' },
+  { value: 'gowundodum', label: '고운돋움', family: 'Gowun Dodum', group: '고딕' },
+  { value: 'maruburi', label: '마루부리', family: 'ACM MaruBuri', group: '명조' },
+  { value: 'nanummyeongjo', label: '나눔명조', family: 'Nanum Myeongjo', group: '명조' },
+  { value: 'notoserif', label: '본명조', family: 'Noto Serif KR', group: '명조' },
+  { value: 'gowunbatang', label: '고운바탕', family: 'Gowun Batang', group: '명조' },
+  { value: 'songmyung', label: '송명', family: 'Song Myung', group: '명조' },
+  { value: 'jua', label: '주아', family: 'Jua', group: '손글씨·디자인' },
+  { value: 'cafe24', label: '써라운드에어', family: 'ACM Cafe24 SsurroundAir', group: '손글씨·디자인' },
+  { value: 'nanumpen', label: '나눔펜', family: 'Nanum Pen Script', group: '손글씨·디자인' },
+  { value: 'gaegu', label: '개구', family: 'Gaegu', group: '손글씨·디자인' },
+  { value: 'dongle', label: '동글', family: 'Dongle', group: '손글씨·디자인' },
+  { value: 'yeonsung', label: '연성', family: 'Yeon Sung', group: '손글씨·디자인' },
+  { value: 'sunflower', label: '해바라기', family: 'Sunflower', group: '손글씨·디자인' },
+  { value: 'dokdo', label: '동해독도', family: 'East Sea Dokdo', group: '손글씨·디자인' },
 ]
+
+export type TextAlign = 'left' | 'center' | 'right'
+/** 사진 위 글자가 잘 읽히게: 그림자 / 외곽선 */
+export type TextEffect = 'none' | 'shadow' | 'outline'
 
 /** 사진 위에 얹는 글자 */
 export type TextLayer = {
@@ -125,6 +160,10 @@ export type TextLayer = {
   bold: boolean
   /** 글자 뒤 둥근 띠 색 (빈 값이면 띠 없음) */
   box: string
+  /** 여러 줄일 때 줄 맞춤 (없으면 가운데) */
+  align?: TextAlign
+  /** 글자 효과 (없으면 없음) */
+  effect?: TextEffect
 }
 
 /** 그린 결과의 요소 위치 (편집기에서 누른 곳 찾기·선택 상자 표시용, 결과 픽셀 기준) */
@@ -136,11 +175,14 @@ export type DrawnLayout = {
 }
 
 /** 결과 1장을 캔버스에 그린다. 편집기에서는 상품 위치·글자도 함께 받는다 */
-export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: PhotoSettings, edit?: { transform?: ProductTransform; texts?: TextLayer[] }): DrawnLayout {
+export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: PhotoSettings, edit?: { transform?: ProductTransform; texts?: TextLayer[] }, opts?: { maxSide?: number }): DrawnLayout {
   const { w, h } = outputSize(src, s)
-  canvas.width = w
-  canvas.height = h
+  // 편집 화면은 줄여서 그린다(A3 같은 큰 크기도 끌기가 느려지지 않게). 좌표는 결과 크기 그대로 쓰고 비율만 줄인다
+  const k = opts?.maxSide ? Math.min(1, opts.maxSide / Math.max(w, h)) : 1
+  canvas.width = Math.round(w * k)
+  canvas.height = Math.round(h * k)
   const ctx = canvas.getContext('2d')!
+  ctx.setTransform(k, 0, 0, k, 0, 0)
   ctx.clearRect(0, 0, w, h)
   ctx.imageSmoothingQuality = 'high'
 
@@ -154,20 +196,23 @@ export function composePhoto(canvas: HTMLCanvasElement, src: PhotoSource, s: Pho
   const cx = box.x + box.w / 2 + t.dx * w
   const cy = box.y + box.h / 2 + t.dy * h
 
-  if (s.shadow === 'floor') drawFloorShadow(ctx, cx - pw / 2, cy - ph / 2, pw, ph)
-  ctx.save()
-  if (s.shadow === 'soft') {
-    const unit = Math.max(pw, ph)
-    ctx.shadowColor = 'rgba(0,0,0,0.28)'
-    ctx.shadowBlur = unit * 0.06
-    ctx.shadowOffsetY = unit * 0.025
+  if (s.showProduct !== false) {
+    if (s.shadow === 'floor') drawFloorShadow(ctx, cx - pw / 2, cy - ph / 2, pw, ph)
+    ctx.save()
+    if (s.shadow === 'soft') {
+      const unit = Math.max(pw, ph)
+      ctx.shadowColor = 'rgba(0,0,0,0.28)'
+      // 그림자 흐림은 캔버스 변환을 따르지 않아 줄인 비율을 직접 곱한다
+      ctx.shadowBlur = unit * 0.06 * k
+      ctx.shadowOffsetY = unit * 0.025 * k
+    }
+    ctx.translate(cx, cy)
+    ctx.rotate((t.rotate * Math.PI) / 180)
+    ctx.drawImage(product, -pw / 2, -ph / 2, pw, ph)
+    ctx.restore()
   }
-  ctx.translate(cx, cy)
-  ctx.rotate((t.rotate * Math.PI) / 180)
-  ctx.drawImage(product, -pw / 2, -ph / 2, pw, ph)
-  ctx.restore()
 
-  const texts = (edit?.texts ?? []).map((layer) => drawText(ctx, layer, w, h))
+  const texts = (edit?.texts ?? []).map((layer) => drawText(ctx, layer, w, h, k))
   return { w, h, product: { cx, cy, w: pw, h: ph, rotate: t.rotate }, texts }
 }
 
@@ -177,8 +222,8 @@ function autoBox(src: PhotoSource, s: PhotoSettings, w: number, h: number) {
   if (s.size === 'original') return { x: src.cutout.x, y: src.cutout.y, w: product.width, h: product.height }
   const pad = Math.round(Math.min(w, h) * s.padding)
   const boxW = w - pad * 2
-  if (s.bg === 'ai' && src.background) {
-    // AI 배경: 비워 둔 바닥·테이블 면에 올려놓듯 아래쪽 가운데에 세운다
+  if ((s.bg === 'ai' || s.bg === 'image') && src.background) {
+    // AI 배경·내 사진: 비워 둔 바닥·테이블 면에 올려놓듯 아래쪽 가운데에 세운다
     const scale = Math.min(boxW / product.width, (h * 0.62 - pad) / product.height)
     const pw = product.width * scale
     const ph = product.height * scale
@@ -195,13 +240,15 @@ export const fontFamily = (f: TextFont) => TEXT_FONTS.find((x) => x.value === f)
 export const fontSpec = (layer: Pick<TextLayer, 'font' | 'bold'>, px: number) => `${layer.bold ? 700 : 400} ${px}px "${fontFamily(layer.font)}"`
 
 /** 글자 1개(여러 줄 가능)를 그리고 차지한 자리를 돌려준다 */
-function drawText(ctx: CanvasRenderingContext2D, layer: TextLayer, w: number, h: number) {
+function drawText(ctx: CanvasRenderingContext2D, layer: TextLayer, w: number, h: number, k = 1) {
   const px = layer.size * (w / 1080)
   const lines = (layer.text || ' ').split('\n')
   const lineH = px * 1.25
+  const align = layer.align ?? 'center'
+  const effect = layer.effect ?? 'none'
   ctx.save()
   ctx.font = fontSpec(layer, px)
-  ctx.textAlign = 'center'
+  ctx.textAlign = align
   ctx.textBaseline = 'middle'
   const textW = Math.max(...lines.map((l) => ctx.measureText(l).width), px * 0.5)
   const textH = lineH * lines.length
@@ -217,10 +264,33 @@ function drawText(ctx: CanvasRenderingContext2D, layer: TextLayer, w: number, h:
     ctx.roundRect(cx - bw / 2, cy - bh / 2, bw, bh, Math.min(bh / 2, px * 0.6))
     ctx.fill()
   }
+  // 줄 맞춤: 상자 안에서 왼쪽·가운데·오른쪽
+  const lx = align === 'left' ? cx - textW / 2 : align === 'right' ? cx + textW / 2 : cx
+  const ys = lines.map((_, i) => cy - textH / 2 + lineH * (i + 0.5))
+  if (effect === 'outline') {
+    // 글자색과 반대 밝기의 테두리
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = px * 0.14
+    ctx.strokeStyle = isLight(layer.color) ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)'
+    lines.forEach((l, i) => ctx.strokeText(l, lx, ys[i]))
+  } else if (effect === 'shadow') {
+    ctx.shadowColor = 'rgba(0,0,0,0.55)'
+    // 그림자는 캔버스 변환을 따르지 않아 줄인 비율을 직접 곱한다
+    ctx.shadowBlur = px * 0.18 * k
+    ctx.shadowOffsetY = px * 0.06 * k
+  }
   ctx.fillStyle = layer.color
-  lines.forEach((l, i) => ctx.fillText(l, cx, cy - textH / 2 + lineH * (i + 0.5)))
+  lines.forEach((l, i) => ctx.fillText(l, lx, ys[i]))
   ctx.restore()
   return { id: layer.id, cx, cy, w: bw, h: bh }
+}
+
+/** 밝은 색인지 (#rrggbb) */
+function isLight(hex: string) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex)
+  if (!m) return true
+  const [r, g, b] = [m[1], m[2], m[3]].map((x) => parseInt(x, 16))
+  return r * 0.299 + g * 0.587 + b * 0.114 > 150
 }
 
 /** 이미지를 빈틈없이 채우도록(cover) 가운데 맞춰 그린다 */
@@ -234,8 +304,12 @@ function drawCover(ctx: CanvasRenderingContext2D, img: HTMLImageElement, w: numb
 function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, src: PhotoSource, s: PhotoSettings) {
   const original = src.original
   if (s.bg === 'transparent') return
-  if (s.bg === 'ai' && src.background) {
+  if ((s.bg === 'ai' || s.bg === 'image') && src.background) {
     drawCover(ctx, src.background, w, h)
+    return
+  }
+  if (s.bg === 'photo') {
+    drawCover(ctx, original, w, h)
     return
   }
   if (s.bg === 'color') {
@@ -243,8 +317,8 @@ function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, src
     ctx.fillRect(0, 0, w, h)
     return
   }
-  // AI 배경을 아직 만들지 않았으면 스튜디오 배경으로 보여 준다
-  if (s.bg === 'studio' || s.bg === 'ai') {
+  // AI 배경·내 사진을 아직 고르지 않았으면 스튜디오 배경으로 보여 준다
+  if (s.bg === 'studio' || s.bg === 'ai' || s.bg === 'image') {
     // 가운데가 밝고 가장자리로 갈수록 살짝 어두운 촬영 스튜디오 느낌
     ctx.fillStyle = s.color
     ctx.fillRect(0, 0, w, h)

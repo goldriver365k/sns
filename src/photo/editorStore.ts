@@ -85,12 +85,12 @@ export function defaultTitle(d = new Date()) {
  * 새 사진으로 편집 시작 (이전 사진 주소는 정리). preset은 홈 화면 도구가 정한 첫 설정.
  * 이미 배경을 지운 사진(여러 장 화면에서 열기)은 cutout을 넘겨 다시 지우지 않는다.
  */
-export function openPhoto(original: PickedImage, tool: EditorTool, preset?: Partial<PhotoSettings>, cutout?: Cutout) {
+export function openPhoto(original: PickedImage, tool: EditorTool, preset?: Partial<PhotoSettings>, cutout?: Cutout, texts?: Omit<TextLayer, 'id'>[]) {
   if (state.doc && state.doc.original.url !== original.url) releaseDoc()
   const design = freshDesign()
   setEditor({
     doc: { original, cutout: cutout ?? null, status: cutout ? 'done' : 'waiting', tool, title: defaultTitle() },
-    design: { ...design, settings: { ...design.settings, ...preset } },
+    design: { ...design, settings: { ...design.settings, ...preset }, texts: (texts ?? []).map((t, i) => ({ ...t, id: `t${Date.now().toString(36)}${i}` })) },
   })
 }
 
