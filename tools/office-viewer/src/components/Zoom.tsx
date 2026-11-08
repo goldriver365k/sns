@@ -1,5 +1,6 @@
 // 화면 배율: 엑셀·워드 각각 마지막으로 고른 배율을 이 브라우저에 기억한다
 const STEPS = [25, 50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200]
+const QUICK = [100, 80, 50]
 const key = (kind: string) => `office-viewer.zoom.${kind}`
 
 export function loadZoom(kind: 'sheet' | 'doc'): number | null {
@@ -25,6 +26,19 @@ export function ZoomControl({ value, onChange, onFit }: { value: number; onChang
   const up = STEPS.find((s) => s > value) ?? STEPS[STEPS.length - 1]
   return (
     <div className="flex items-center gap-1 text-sm">
+      {/* 자주 쓰는 보기 배율 */}
+      <span className="text-xs text-muted">보기</span>
+      <div className="mr-1 flex overflow-hidden rounded-lg border border-cream-300 bg-white">
+        {QUICK.map((q) => (
+          <button
+            key={q}
+            onClick={() => onChange(q)}
+            className={`px-2 py-0.5 text-sm ${value === q ? 'bg-forest-700 font-semibold text-cream-50' : 'text-ink hover:bg-cream-100'}`}
+          >
+            {q}%
+          </button>
+        ))}
+      </div>
       <button className={btn} onClick={() => onChange(down)} disabled={value <= STEPS[0]} title="축소">
         −
       </button>

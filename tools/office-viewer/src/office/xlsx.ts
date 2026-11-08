@@ -543,6 +543,85 @@ export function setCell(wb: Workbook, sheetIndex: number, ref: string, input: st
   return result
 }
 
+// ── 열 너비·행 높이 ─────────────────────────────────
+/** 화면 px → 엑셀 열 너비(글자 수 단위) */
+const pxToChars = (px: number) => Math.max(0, Math.round(((px - 5) / 7) * 100) / 100)
+
+/**
+ * 열 너비를 바꾼다(px). <cols> 의 범위(min~max)가 여러 열을 묶고 있으면 나눠서
+ * 고른 열만 바꾸고, 나머지 속성(서식·숨김 등)은 그대로 둔다.
+ */
+export function setColWidths(wb: Workbook, sheetIndex: number, columns: number[], px: number) {
+  const sheet = wb.sheets[sheetIndex]
+  const doc = sheet.doc
+  const root = doc.documentElement
+  const ns = root.namespaceURI ?? MAIN
+  let colsEl = child(root, 'cols')
+  if (!colsEl) {
+    colsEl = makeEl(doc, ns, 'cols', root)
+    root.insertBefore(colsEl, child(root, 'sheetData'))
+  }
+  const width = String(pxToChars(px))
+  for (const c of columns) {
+    const list = children(colsEl, 'col')
+    const hit = list.find((el) => Number(el.getAttribute('min')) <= c && c <= Number(el.getAttribute('max')))
+    let target: Element
+    if (hit) {
+      const min = Number(hit.getAttribute('min'))
+      const max = Number(hit.getAttribute('max'))
+      if (min < c) {
+        const before = hit.cloneNode(true) as Element
+        before.setAttribute('max', String(c - 1))
+        hit.before(before)
+      }
+      if (max > c) {
+        const after = hit.cloneNode(true) as Element
+        after.setAttribute('min', String(c + 1))
+        hit.after(after)
+      }
+      hit.setAttribute('min', String(c))
+      hit.setAttribute('max', String(c))
+      target = hit
+    } else {
+      target = makeEl(doc, ns, 'col', root)
+      target.setAttribute('min', String(c))
+      target.setAttribute('max', String(c))
+      const next = list.find((el) => Number(el.getAttribute('min')) > c)
+      colsEl.insertBefore(target, next ?? null)
+    }
+    target.setAttribute('width', width)
+    target.setAttribute('customWidth', '1')
+    if (px > 0) target.removeAttribute('hidden')
+    sheet.widths.set(c, Math.round(px))
+  }
+  wb.changed.add(sheetIndex)
+}
+
+/** 행 높이를 바꾼다(px). 엑셀에는 pt 로 저장 */
+export function setRowHeights(wb: Workbook, sheetIndex: number, rowNums: number[], px: number) {
+  const sheet = wb.sheets[sheetIndex]
+  const doc = sheet.doc
+  const root = doc.documentElement
+  const ns = root.namespaceURI ?? MAIN
+  let sheetData = child(root, 'sheetData')
+  if (!sheetData) {
+    sheetData = makeEl(doc, ns, 'sheetData', root)
+    root.appendChild(sheetData)
+  }
+  for (const r of rowNums) {
+    const row = findOrCreate(sheetData, 'row', r, (el) => Number(el.getAttribute('r')), () => {
+      const el = makeEl(doc, ns, 'row', root)
+      el.setAttribute('r', String(r))
+      return el
+    })
+    row.setAttribute('ht', String(Math.round(px * 0.75 * 100) / 100))
+    row.setAttribute('customHeight', '1')
+    if (px > 0) row.removeAttribute('hidden')
+    sheet.heights.set(r, Math.round(px))
+  }
+  wb.changed.add(sheetIndex)
+}
+
 // ── 저장 ────────────────────────────────────────────
 export async function saveXlsx(wb: Workbook): Promise<Blob> {
   for (const i of wb.changed) {

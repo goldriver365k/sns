@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type MutableRefObject } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject } from 'react'
 import { flushSync } from 'react-dom'
-import { cellRef, colName, rangeText, setCell, setPrintArea, type Range, type Workbook } from '../office/xlsx'
+import { cellRef, colName, rangeText, setCell, setColWidths, setPrintArea, setRowHeights, type Range, type Workbook } from '../office/xlsx'
 import { cellCss, colWidth, inRange, mergeLayout, mergeOrigin, normRange, parseTsv, rowHeight, toTsv, usedRange } from './sheetRender'
 import { SheetPrint, SheetPrintDialog, type SheetPrintJob } from './Print'
 import { ZoomControl, loadZoom, saveZoom } from './Zoom'
@@ -11,7 +11,9 @@ const HEAD_W = 44
 const tool = 'rounded-lg px-2.5 py-1 text-sm text-ink hover:bg-cream-200 disabled:cursor-not-allowed disabled:opacity-40'
 
 type Pos = { r: number; c: number }
-type UndoItem = { sheet: number; edits: { ref: string; before: string }[] }
+type SizeChange = { kind: 'col' | 'row'; n: number; before: number }
+type UndoItem = { sheet: number; edits: { ref: string; before: string }[]; sizes?: SizeChange[] }
+type Resize = { kind: 'col' | 'row'; targets: number[]; start: number; size: number; before: SizeChange[] }
 
 /** 엑셀 시트 보기 + 셀 고치기 + 인쇄 */
 export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; onChange: () => void; printRef: MutableRefObject<(() => void) | null> }) {
@@ -35,6 +37,8 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
   const gridRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const skipBlur = useRef(false) // Esc로 취소할 때는 저장하지 않는다
+  const resizing = useRef<Resize | null>(null)
+  const [, redraw] = useState(0)
 
   const sel = normRange(anchor, focus)
   const ref = cellRef(anchor.r, anchor.c)
@@ -106,6 +110,10 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
     const item = undo.current.pop()
     if (!item) return
     for (const e of [...item.edits].reverse()) setCell(wb, item.sheet, e.ref, e.before)
+    for (const z of item.sizes ?? []) {
+      if (z.kind === 'col') setColWidths(wb, item.sheet, [z.n], z.before)
+      else setRowHeights(wb, item.sheet, [z.n], z.before)
+    }
     if (item.sheet !== index) setIndex(item.sheet)
     setVer((v) => v + 1)
     const first = item.edits[0]
@@ -115,6 +123,92 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
       setAnchor(p)
       setFocus(p)
     }
+    onChange()
+  }
+
+  // ── 열 너비·행 높이 (머리글 경계를 끌어서) ──
+  /** 여러 열(행)을 통째로 고른 상태에서 그중 하나를 끌면 고른 열(행) 모두 바꾼다 (엑셀과 같음) */
+  function sizeTargets(kind: 'col' | 'row', n: number) {
+    const whole = kind === 'col' ? sel.r1 === 1 && sel.r2 >= used.r2 : sel.c1 === 1 && sel.c2 >= used.c2
+    const [a, b] = kind === 'col' ? [sel.c1, sel.c2] : [sel.r1, sel.r2]
+    if (whole && n >= a && n <= b && b > a) return Array.from({ length: b - a + 1 }, (_, i) => a + i)
+    return [n]
+  }
+  const sizeOf = (kind: 'col' | 'row', n: number) => (kind === 'col' ? colWidth(sheet, n) : rowHeight(sheet, n))
+
+  function applySizes(kind: 'col' | 'row', targets: number[], px: number, before: SizeChange[]) {
+    if (kind === 'col') setColWidths(wb, index, targets, px)
+    else setRowHeights(wb, index, targets, px)
+    undo.current.push({ sheet: index, edits: [], sizes: before })
+    onChange()
+  }
+
+  function startResize(e: ReactMouseEvent, kind: 'col' | 'row', n: number) {
+    e.preventDefault()
+    e.stopPropagation()
+    const targets = sizeTargets(kind, n)
+    resizing.current = {
+      kind,
+      targets,
+      start: kind === 'col' ? e.clientX : e.clientY,
+      size: sizeOf(kind, n),
+      before: targets.map((t) => ({ kind, n: t, before: sizeOf(kind, t) })),
+    }
+    const move = (ev: MouseEvent) => {
+      const rz = resizing.current
+      if (!rz) return
+      const delta = ((rz.kind === 'col' ? ev.clientX : ev.clientY) - rz.start) / (zoom / 100)
+      const px = Math.max(rz.kind === 'col' ? 12 : 8, Math.round(rz.size + delta))
+      // 끄는 동안에는 화면만 바꾸고, 놓을 때 파일에 반영한다
+      for (const t of rz.targets) (rz.kind === 'col' ? sheet.widths : sheet.heights).set(t, px)
+      redraw((v) => v + 1)
+    }
+    const up = () => {
+      window.removeEventListener('mousemove', move)
+      window.removeEventListener('mouseup', up)
+      const rz = resizing.current
+      resizing.current = null
+      if (!rz) return
+      const px = sizeOf(rz.kind, rz.targets[0])
+      if (rz.before.every((b) => b.before === px)) return
+      applySizes(rz.kind, rz.targets, px, rz.before)
+    }
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+  }
+
+  /** 내용에 맞는 크기: 열은 가장 긴 글자, 행은 가장 큰 글자·줄 수 (병합 칸은 뺌) */
+  function fitSize(kind: 'col' | 'row', n: number) {
+    const ctx = document.createElement('canvas').getContext('2d')!
+    const family = getComputedStyle(document.body).fontFamily
+    const merged = (r: number, c: number) => sheet.merges.some((m) => (kind === 'col' ? m.cols > 1 : m.rows > 1) && r >= m.r && r < m.r + m.rows && c >= m.c && c < m.c + m.cols)
+    const [r1, r2, c1, c2] = kind === 'col' ? [1, used.r2, n, n] : [n, n, 1, used.c2]
+    let best = 0
+    for (let r = r1; r <= r2; r++)
+      for (let c = c1; c <= c2; c++) {
+        const k = cellRef(r, c)
+        const v = sheet.cells.get(k)
+        if (!v?.value || merged(r, c)) continue
+        const css = cellCss(wb, sheet, k, v)
+        const size = parseFloat(String(css.fontSize)) || 15
+        const lines = v.value.split('\n')
+        if (kind === 'col') {
+          ctx.font = `${css.fontWeight ?? 400} ${size}px ${family}`
+          for (const line of lines) best = Math.max(best, ctx.measureText(line).width + 12)
+        } else best = Math.max(best, size * 1.4 * lines.length + 4)
+      }
+    return kind === 'col' ? Math.min(600, Math.max(30, Math.ceil(best) || sheet.defaultWidth)) : Math.max(sheet.defaultHeight, Math.ceil(best))
+  }
+
+  /** 열(행) 경계를 두 번 누르거나 [열 너비 맞춤]: 각 열(행)을 내용에 맞춘다 */
+  function autoFit(kind: 'col' | 'row', targets: number[]) {
+    const before = targets.map((t) => ({ kind, n: t, before: sizeOf(kind, t) }))
+    for (const t of targets) {
+      const px = fitSize(kind, t)
+      if (kind === 'col') setColWidths(wb, index, [t], px)
+      else setRowHeights(wb, index, [t], px)
+    }
+    undo.current.push({ sheet: index, edits: [], sizes: before })
     onChange()
   }
 
@@ -305,6 +399,10 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
           ↶ 되돌리기
         </button>
         <span className="mx-1 h-5 w-px bg-cream-300" />
+        <button className={tool} onClick={() => autoFit('col', Array.from({ length: sel.c2 - sel.c1 + 1 }, (_, i) => sel.c1 + i))} title="고른 열의 너비를 내용에 맞춤 (열 머리글 경계를 두 번 눌러도 됨)">
+          ↔ 열 너비 맞춤
+        </button>
+        <span className="mx-1 h-5 w-px bg-cream-300" />
         <button className={tool} onClick={() => (setPrintArea(wb, index, { ...sel }), onChange())} title="선택한 범위를 인쇄 영역으로 (저장하면 엑셀에도 적용)">
           ▣ 인쇄 영역 지정
         </button>
@@ -403,11 +501,18 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
                       if (!e.shiftKey) setAnchor({ r: 1, c })
                       setFocus({ r: Math.max(used.r2, 1), c })
                     }}
-                    className={`sticky top-0 z-20 cursor-s-resize overflow-hidden border-r border-b border-cream-300 text-[11px] font-normal ${
+                    className={`group sticky top-0 z-20 cursor-s-resize overflow-hidden border-r border-b border-cream-300 text-[11px] font-normal ${
                       c >= sel.c1 && c <= sel.c2 ? 'bg-forest-100 text-forest-900' : 'bg-cream-100 text-muted'
                     }`}
                   >
                     {hidden ? '' : colName(c)}
+                    {/* 오른쪽 경계: 끌어서 너비 조절, 두 번 눌러 내용에 맞춤 */}
+                    <span
+                      onMouseDown={(e) => startResize(e, 'col', c)}
+                      onDoubleClick={() => autoFit('col', sizeTargets('col', c))}
+                      title="끌어서 열 너비 조절 · 두 번 눌러 내용에 맞춤"
+                      className="absolute top-0 right-0 h-full w-2 cursor-col-resize hover:bg-forest-500/60"
+                    />
                   </th>
                 )
               })}
@@ -430,6 +535,13 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
                     }`}
                   >
                     {r}
+                    {/* 아래 경계: 끌어서 높이 조절, 두 번 눌러 내용에 맞춤 */}
+                    <span
+                      onMouseDown={(e) => startResize(e, 'row', r)}
+                      onDoubleClick={() => autoFit('row', sizeTargets('row', r))}
+                      title="끌어서 행 높이 조절 · 두 번 눌러 내용에 맞춤"
+                      className="absolute bottom-0 left-0 h-1.5 w-full cursor-row-resize hover:bg-forest-500/60"
+                    />
                   </th>
                   {Array.from({ length: cols }, (_, ci) => {
                     const c = ci + 1
