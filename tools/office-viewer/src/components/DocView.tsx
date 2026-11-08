@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type MutableRefObject } from 'react'
+import { flushSync } from 'react-dom'
+import { PrintPortal } from './Print'
+import { ZoomControl, loadZoom, saveZoom } from './Zoom'
 import {
   canChangeLevel,
   countMatches,
@@ -16,7 +19,7 @@ import {
   type Level,
   type Para,
   type WordDoc,
-} from '../../office/docx'
+} from '../office/docx'
 
 const LEVEL_CLASS: Record<Para['level'], string> = {
   title: 'text-3xl font-bold text-forest-900 mb-4',
@@ -36,11 +39,13 @@ const ALIGNS: { id: Align; label: string }[] = [
 const tool = 'rounded-lg border border-cream-300 bg-white px-2.5 py-1 text-sm hover:border-forest-500'
 
 /** 워드 문서 보기 + 문단 고치기 */
-export default function DocView({ d, onChange }: { d: WordDoc; onChange: () => void }) {
+export default function DocView({ d, onChange, printRef }: { d: WordDoc; onChange: () => void; printRef: MutableRefObject<(() => void) | null> }) {
   const [editing, setEditing] = useState<Element | null>(null)
   const [find, setFind] = useState('')
   const [to, setTo] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
+  const [zoom, setZoom] = useState(() => loadZoom('doc') ?? 100)
+  const [printing, setPrinting] = useState(false)
 
   function changed() {
     refresh(d)
@@ -52,15 +57,38 @@ export default function DocView({ d, onChange }: { d: WordDoc; onChange: () => v
     changed()
   }
 
+  // 인쇄: 편집 표시 없이 문서 내용만 인쇄용 영역에 그린다
+  useEffect(() => {
+    printRef.current = () => {
+      setEditing(null)
+      flushSync(() => setPrinting(true))
+      window.print()
+      setPrinting(false)
+    }
+    const before = () => {
+      if (!document.getElementById('print-root')?.childElementCount) flushSync(() => setPrinting(true))
+    }
+    const after = () => setPrinting(false)
+    window.addEventListener('beforeprint', before)
+    window.addEventListener('afterprint', after)
+    return () => {
+      printRef.current = null
+      window.removeEventListener('beforeprint', before)
+      window.removeEventListener('afterprint', after)
+    }
+  }, [printRef])
+
   const props = { d, editing, setEditing, run }
   const matches = countMatches(d, find)
+  const pgSz = Array.from(d.doc.getElementsByTagNameNS('*', 'pgSz')).pop()
+  const landscape = !!pgSz && (pgSz.getAttribute('w:orient') === 'landscape' || Number(pgSz.getAttribute('w:w')) > Number(pgSz.getAttribute('w:h')))
 
   return (
-    <div>
-      {/* 찾아 바꾸기 */}
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
-        <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="찾을 글" className="w-40 rounded-lg border border-cream-300 bg-white px-3 py-1.5 outline-none focus:border-forest-500" />
-        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="바꿀 글" className="w-40 rounded-lg border border-cream-300 bg-white px-3 py-1.5 outline-none focus:border-forest-500" />
+    <div className="flex h-full min-h-0 flex-col">
+      {/* 도구 모음: 찾아 바꾸기 + 배율 */}
+      <div className="flex flex-wrap items-center gap-1 border-b border-cream-300 bg-cream-50 px-2 py-1.5 text-sm">
+        <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="찾을 글" className="w-32 rounded-lg border border-cream-300 bg-white px-2 py-1 outline-none focus:border-forest-500" />
+        <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="바꿀 글" className="w-32 rounded-lg border border-cream-300 bg-white px-2 py-1 outline-none focus:border-forest-500" />
         <button
           className={tool}
           disabled={!matches}
@@ -74,16 +102,35 @@ export default function DocView({ d, onChange }: { d: WordDoc; onChange: () => v
         </button>
         {find && <span className="text-muted">{matches}곳 찾음</span>}
         {msg && <span className="text-forest-700">{msg}</span>}
+        <span className="flex-1" />
+        <ZoomControl
+          value={zoom}
+          onChange={(z) => {
+            setZoom(z)
+            saveZoom('doc', z)
+          }}
+        />
       </div>
 
-      <div className="rounded-xl bg-cream-200 p-2 sm:p-6">
-        <article className="mx-auto max-w-[800px] rounded-lg bg-white px-5 py-8 text-[15px] leading-relaxed text-ink shadow-sm sm:px-14 sm:py-14">
+      <div className="min-h-0 flex-1 overflow-auto bg-cream-200 p-2 sm:p-6">
+        <article
+          style={{ zoom: zoom / 100, maxWidth: landscape ? 1120 : 800 }}
+          className="mx-auto rounded-lg bg-white px-5 py-8 text-[15px] leading-relaxed text-ink shadow-sm sm:px-14 sm:py-14"
+        >
           <Blocks blocks={d.blocks} {...props} />
         </article>
+        <p className="mx-auto mt-3 max-w-[800px] text-xs text-muted">
+          문단을 누르면 고칠 수 있습니다. 글을 고쳐도 굵게·색 같은 글자 모양과 그림은 최대한 남기며, 머리글·바닥글·각주 등 이 화면에 안 보이는 내용도 그대로 저장됩니다.
+        </p>
       </div>
-      <p className="mt-3 text-xs text-muted">
-        문단을 누르면 고칠 수 있습니다. 글을 고쳐도 굵게·색 같은 글자 모양과 그림은 최대한 남기며, 머리글·바닥글·각주 등 이 화면에 안 보이는 내용도 그대로 저장됩니다.
-      </p>
+
+      {printing && (
+        <PrintPortal landscape={landscape}>
+          <article className="text-[15px] leading-relaxed text-black">
+            <Blocks blocks={d.blocks} d={d} editing={null} setEditing={() => {}} run={() => {}} />
+          </article>
+        </PrintPortal>
+      )}
     </div>
   )
 }

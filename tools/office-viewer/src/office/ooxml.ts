@@ -1,6 +1,6 @@
 // 엑셀(.xlsx)·워드(.docx) 공통: 둘 다 ZIP 안에 XML 파일이 들어 있는 형식(OOXML)이다.
-// 파일은 서버로 보내지 않고 브라우저 안에서만 열고 고친다.
-import type JSZip from 'jszip'
+// 파일은 어디로도 보내지 않고 브라우저 안에서만 열고 고친다.
+import JSZip from 'jszip'
 
 export const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 const PKG_REL_NS = 'http://schemas.openxmlformats.org/package/2006/relationships'
@@ -10,7 +10,6 @@ const XML_HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 export const MAX_FILE_BYTES = 30 * 1024 * 1024
 
 export async function loadZip(data: Blob | ArrayBuffer): Promise<JSZip> {
-  const { default: JSZip } = await import('jszip')
   try {
     return await JSZip.loadAsync(data)
   } catch {

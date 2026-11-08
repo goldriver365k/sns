@@ -1,0 +1,50 @@
+/* 이 폴더의 파일만 살펴 필요한 스타일만 넣는다 */
+@import 'tailwindcss' source('../');
+
+/* 색: SNS 사이트와 같은 크림색 배경 + 짙은 녹색 포인트 */
+@theme {
+  --color-cream-50: #fcfaf5;
+  --color-cream-100: #f7f3ea;
+  --color-cream-200: #ede6d6;
+  --color-cream-300: #ddd3bd;
+  --color-forest-50: #eef4f0;
+  --color-forest-100: #d5e5db;
+  --color-forest-500: #2e6b51;
+  --color-forest-700: #1f4d3a;
+  --color-forest-900: #12302a;
+  --color-ink: #2b2a26;
+  --color-muted: #77736a;
+  /* 글꼴 파일을 넣지 않고 PC에 있는 한글 글꼴을 쓴다 (파일 크기를 작게) */
+  --font-sans: 'Pretendard Variable', Pretendard, 'Malgun Gothic', '맑은 고딕', 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+}
+
+body {
+  background: var(--color-cream-100);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+}
+
+/* 인쇄: 화면(#root)은 숨기고 인쇄용 영역만 보인다. 채우기 색도 그대로 인쇄 */
+#print-root {
+  display: none;
+}
+@media print {
+  #root {
+    display: none !important;
+  }
+  #print-root {
+    display: block !important;
+  }
+  body {
+    background: #fff;
+  }
+  #print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #print-root tr {
+    break-inside: avoid;
+  }
+}
