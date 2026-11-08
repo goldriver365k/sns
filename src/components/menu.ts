@@ -1,4 +1,4 @@
-import { IconArchive, IconCalendar, IconFilm, IconImage, IconPen, IconSettings, IconSun, IconWand } from './Icons'
+import { IconArchive, IconCalendar, IconDoc, IconFilm, IconImage, IconPen, IconSettings, IconSun, IconWand } from './Icons'
 
 export const MENU = [
   { path: '/create', label: 'SNS 게시물 만들기', icon: IconPen },
@@ -8,5 +8,6 @@ export const MENU = [
   { path: '/calendar', label: '콘텐츠 캘린더', icon: IconCalendar },
   { path: '/images', label: '이미지 보관함', icon: IconImage },
   { path: '/history', label: '지난 콘텐츠', icon: IconArchive },
+  { path: '/office', label: '엑셀·워드 문서', icon: IconDoc },
   { path: '/settings', label: '운영 설정', icon: IconSettings },
 ] as const
