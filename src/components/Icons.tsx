@@ -42,3 +42,6 @@ export const IconFilm = (p: P) => (
 export const IconWand = (p: P) => (
   <svg {...base} className={p.className}><path d="M4 20L15 9M13 7l4 4" /><path d="M18 3v3M16.5 4.5h3M20 9v2M19 10h2M10 3v2M9 4h2" /></svg>
 )
+export const IconDoc = (p: P) => (
+  <svg {...base} className={p.className}><path d="M6 3h8l4 4v14H6z" /><path d="M14 3v4h4M9 12h6M9 16h6" /></svg>
+)

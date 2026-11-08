@@ -16,6 +16,7 @@ const PhotoStudio = lazy(() => import('./pages/PhotoStudio'))
 const PhotoHome = lazy(() => import('./pages/PhotoHome'))
 const PhotoEditor = lazy(() => import('./pages/PhotoEditor'))
 const PastContents = lazy(() => import('./pages/PastContents'))
+const OfficeViewer = lazy(() => import('./pages/OfficeViewer'))
 const OpsSettings = lazy(() => import('./pages/OpsSettings'))
 const ReelsLayout = lazy(() => import('./pages/reels/ReelsLayout'))
 const ReelStudio = lazy(() => import('./pages/reels/ReelStudio'))
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="photo/edit" element={<PhotoEditor />} />
         <Route path="photo/batch" element={<PhotoStudio />} />
         <Route path="history" element={<PastContents />} />
+        <Route path="office" element={<OfficeViewer />} />
         <Route path="settings" element={<OpsSettings />} />
         <Route path="reels" element={<ReelsLayout />}>
           <Route index element={<ReelStudio />} />
