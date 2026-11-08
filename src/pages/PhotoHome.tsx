@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import MyDesigns from '../components/photo/MyDesigns'
 import { prepareImage } from '../lib/images'
-import { SIZES, targetSize, type PhotoSettings, type SizeId, type TextLayer } from '../photo/compose'
+import { SIZES, type PhotoSettings, type SizeId, type TextLayer } from '../photo/compose'
 import { POSTER_SETS, TYPO_SETS } from '../components/photo/TextPanel'
-import { renderSample, SAMPLE_BGS } from '../photo/sampleBgs'
-import { getEditor, openPhoto, patchDoc, setEditor, useEditor, type EditorTool } from '../photo/editorStore'
+import { startTypoPoster } from '../photo/typoPoster'
+import { getEditor, openPhoto, useEditor, type EditorTool } from '../photo/editorStore'
 
 /** noPhoto: 사진 없이 시작 (글자 포스터) */
 type Tile = { id: string; icon: string; label: string; desc: string; tool: EditorTool; preset?: Partial<PhotoSettings>; texts?: Omit<TextLayer, 'id'>[]; noPhoto?: boolean }
@@ -52,38 +52,20 @@ export default function PhotoHome() {
   }
 
   /** 사진 없이 시작: 빈 바탕을 원본 대신 쓰고, 기본 샘플 배경(크림)과 글자 세트로 연다 */
-  async function startWithoutPhoto(tile: Tile) {
+  /** 사진 없이 시작 (글자 포스터) */
+  async function startWithoutPhoto() {
     setError(null)
     try {
-      const s = size === 'original' ? 'portrait' : size
-      const out = targetSize({ ...getEditor().design.settings, size: s }, 1080, 1350)
-      const blank = document.createElement('canvas')
-      blank.width = out.w
-      blank.height = out.h
-      const bctx = blank.getContext('2d')!
-      bctx.fillStyle = '#ffffff'
-      bctx.fillRect(0, 0, out.w, out.h)
-      const blob = await new Promise<Blob>((res, rej) => blank.toBlob((b) => (b ? res(b) : rej(new Error('바탕을 만들지 못했습니다.'))), 'image/png'))
-      const img = await prepareImage(blob, 'file')
-      // 상품이 없으므로 투명한 1px 그림을 상품 자리로 둔다 (배경 지우기 없음)
-      const none = document.createElement('canvas')
-      none.width = 1
-      none.height = 1
-      openPhoto(img, tile.tool, { ...tile.preset, size: s }, { canvas: none, x: 0, y: 0 }, tile.texts)
-      const sample = SAMPLE_BGS.find((x) => x.id === 'cream') ?? SAMPLE_BGS[0]
-      const el = await renderSample(sample, out.w, out.h)
-      const id = `sample-${sample.id}-${Date.now().toString(36)}`
-      setEditor((st) => ({ aiBgs: [{ id, url: el.src, el, prompt: `샘플 배경: ${sample.name}`, kind: 'image' }, ...st.aiBgs], design: { ...st.design, aiBgId: id } }))
-      const d = new Date()
-      patchDoc({ title: `글자 포스터 ${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}` })
+      await startTypoPoster(size)
       navigate('/photo/edit')
     } catch (e) {
       setError(e instanceof Error ? e.message : '글자 포스터를 시작하지 못했습니다.')
     }
   }
 
+
   function pick(tile: Tile | null) {
-    if (tile?.noPhoto) return void startWithoutPhoto(tile)
+    if (tile?.noPhoto) return void startWithoutPhoto()
     pending.current = tile
     fileRef.current?.click()
   }

@@ -8,6 +8,7 @@ import SetupNeeded from './pages/SetupNeeded'
 import OfflineBanner from './components/OfflineBanner'
 
 // 화면별로 나눠 내려받는다 (첫 화면을 빠르게)
+const Home = lazy(() => import('./pages/Home'))
 const CreatePost = lazy(() => import('./pages/CreatePost'))
 const TodayContents = lazy(() => import('./pages/TodayContents'))
 const ContentCalendar = lazy(() => import('./pages/ContentCalendar'))
@@ -41,8 +42,8 @@ export default function App() {
     <Suspense fallback={<Loading />}>
     <Routes>
       <Route element={<Layout />}>
-        {/* 로그인 후 첫 화면: SNS 게시물 만들기 */}
-        <Route index element={<Navigate to="/create" replace />} />
+        {/* 로그인 후 첫 화면: 홈(무엇을 만들까요? + 도구 + 디자인 계속하기) */}
+        <Route index element={<Home />} />
         <Route path="create" element={<CreatePost />} />
         <Route path="today" element={<TodayContents />} />
         <Route path="calendar" element={<ContentCalendar />} />
@@ -61,7 +62,7 @@ export default function App() {
           <Route path="projects" element={<ReelProjects />} />
           <Route path="settings" element={<ReelSettings />} />
         </Route>
-        <Route path="*" element={<Navigate to="/create" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
     </Suspense>
