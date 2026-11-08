@@ -25,3 +25,26 @@ body {
   -webkit-font-smoothing: antialiased;
   word-break: keep-all;
 }
+
+/* 인쇄: 화면(#root)은 숨기고 인쇄용 영역만 보인다. 채우기 색도 그대로 인쇄 */
+#print-root {
+  display: none;
+}
+@media print {
+  #root {
+    display: none !important;
+  }
+  #print-root {
+    display: block !important;
+  }
+  body {
+    background: #fff;
+  }
+  #print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #print-root tr {
+    break-inside: avoid;
+  }
+}

@@ -2,6 +2,7 @@
 // 서식·차트·그림 등 이 화면이 모르는 내용은 그대로 남는다.
 import JSZip from 'jszip'
 import { attr, baseName, child, children, loadZip, mainPart, makeEl, parseXml, readRels, readXml, removePart, writeXml } from './ooxml'
+import { readCellStyles, readTheme, type CellStyle } from './xlstyle'
 
 export type XCell = {
   /** 화면에 보이는 값 */
@@ -14,6 +15,8 @@ export type XCell = {
   /** 고칠 수 없는 이유 */
   locked?: string
 }
+/** 셀 범위 (1부터, 양 끝 포함) */
+export type Range = { r1: number; c1: number; r2: number; c2: number }
 export type Merge = { r: number; c: number; rows: number; cols: number }
 export type XSheet = {
   name: string
@@ -27,6 +30,21 @@ export type XSheet = {
   merges: Merge[]
   /** 열 너비(px), 열 번호(1부터) → 너비 */
   widths: Map<number, number>
+  /** 행 높이(px), 행 번호 → 높이 (0 = 숨긴 행) */
+  heights: Map<number, number>
+  /** 셀 서식 번호 (값이 없어도 서식만 있는 칸 포함) */
+  styleOf: Map<string, number>
+  /** 기본 열 너비·행 높이(px) */
+  defaultWidth: number
+  defaultHeight: number
+  /** 엑셀에 저장된 화면 배율(%) */
+  zoom: number
+  /** 엑셀 인쇄 설정의 가로 방향 여부 */
+  landscape: boolean
+  /** 인쇄 영역 */
+  printArea: Range | null
+  /** <sheets> 안의 순서 (인쇄 영역 이름의 localSheetId) */
+  bookIndex: number
 }
 export type Workbook = {
   kind: 'xlsx'
@@ -40,6 +58,9 @@ export type Workbook = {
   formulaChanged: boolean
   /** 지금 보고 있는 시트 (CSV 저장에 씀) */
   active: number
+  /** 셀 서식 목록 (styles.xml cellXfs 순서) */
+  cellStyles: CellStyle[]
+  printAreaChanged: boolean
 }
 
 export const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -193,20 +214,47 @@ function readCell(wb: Workbook, el: Element, shared: string[]): XCell {
   return cell
 }
 
-async function readSheet(wb: Workbook, name: string, path: string, hidden: boolean, shared: string[]): Promise<XSheet> {
+async function readSheet(wb: Workbook, name: string, path: string, hidden: boolean, shared: string[], bookIndex: number): Promise<XSheet> {
   const doc = await readXml(wb.zip, path)
   if (!doc) throw new Error(`시트 "${name}" 파일이 없습니다.`)
-  const sheet: XSheet = { name, path, hidden, doc, cells: new Map(), rows: 0, cols: 0, merges: [], widths: new Map() }
   const root = doc.documentElement
+  const fmt = child(root, 'sheetFormatPr')
+  const view = child(child(root, 'sheetViews') ?? root, 'sheetView')
+  const setup = child(root, 'pageSetup')
+  const sheet: XSheet = {
+    name,
+    path,
+    hidden,
+    doc,
+    cells: new Map(),
+    rows: 0,
+    cols: 0,
+    merges: [],
+    widths: new Map(),
+    heights: new Map(),
+    styleOf: new Map(),
+    defaultWidth: Math.round((Number(fmt?.getAttribute('defaultColWidth')) || (Number(fmt?.getAttribute('baseColWidth')) || 8) + 0.71) * 7 + 5),
+    defaultHeight: Math.round(((Number(fmt?.getAttribute('defaultRowHeight')) || 15) * 4) / 3),
+    zoom: Number(view?.getAttribute('zoomScale')) || 100,
+    landscape: setup?.getAttribute('orientation') === 'landscape',
+    printArea: null,
+    bookIndex,
+  }
   const sheetData = child(root, 'sheetData')
   if (sheetData) {
     normalizeRefs(sheetData)
     for (const row of children(sheetData, 'row')) {
+      const r = Number(row.getAttribute('r'))
+      const ht = Number(row.getAttribute('ht'))
+      if (row.getAttribute('hidden') === '1') sheet.heights.set(r, 0)
+      else if (ht) sheet.heights.set(r, Math.round((ht * 4) / 3))
       for (const c of children(row, 'c')) {
         const ref = c.getAttribute('r')!
+        const s = Number(c.getAttribute('s') ?? 0)
+        if (s) sheet.styleOf.set(ref, s)
         const cell = readCell(wb, c, shared)
         if (cell.value === '' && !child(c, 'f')) continue
-        const { r, c: col } = parseRef(ref)
+        const { c: col } = parseRef(ref)
         sheet.cells.set(ref, cell)
         sheet.rows = Math.max(sheet.rows, r)
         sheet.cols = Math.max(sheet.cols, col)
@@ -220,6 +268,9 @@ async function readSheet(wb: Workbook, name: string, path: string, hidden: boole
     const s = parseRef(a)
     const e = parseRef(b)
     sheet.merges.push({ r: s.r, c: s.c, rows: e.r - s.r + 1, cols: e.c - s.c + 1 })
+    // 병합 칸에만 서식이 있는 표도 내용 범위에 넣는다
+    sheet.rows = Math.max(sheet.rows, e.r)
+    sheet.cols = Math.max(sheet.cols, e.c)
   }
   const colsEl = child(root, 'cols')
   for (const col of colsEl ? children(colsEl, 'col') : []) {
@@ -239,13 +290,17 @@ async function readWorkbook(zip: JSZip, fileName: string): Promise<Workbook> {
   if (!book || book.documentElement.localName !== 'workbook') throw new Error('엑셀 통합 문서(.xlsx)가 아닙니다.')
   const rels = await readRels(zip, bookPath)
   const relPath = (suffix: string) => rels.find((r) => r.type.endsWith(suffix))?.target
+  const stylesDoc = await readXml(zip, relPath('/styles') ?? 'xl/styles.xml')
+  const theme = readTheme(await readXml(zip, relPath('/theme') ?? 'xl/theme/theme1.xml'))
   const wb: Workbook = {
     kind: 'xlsx',
     fileName,
     zip,
     bookPath,
     sheets: [],
-    styles: readStyles(await readXml(zip, relPath('/styles') ?? 'xl/styles.xml')),
+    styles: readStyles(stylesDoc),
+    cellStyles: readCellStyles(stylesDoc, theme),
+    printAreaChanged: false,
     date1904: ['1', 'true'].includes(attr(child(book.documentElement, 'workbookPr'), 'date1904') ?? ''),
     changed: new Set(),
     formulaChanged: false,
@@ -254,18 +309,85 @@ async function readWorkbook(zip: JSZip, fileName: string): Promise<Workbook> {
   const sst = await readXml(zip, relPath('/sharedStrings') ?? 'xl/sharedStrings.xml')
   const shared = sst ? children(sst.documentElement, 'si').map(sharedText) : []
   const sheetsEl = child(book.documentElement, 'sheets')
-  for (const s of sheetsEl ? children(sheetsEl, 'sheet') : []) {
+  const sheetEls = sheetsEl ? children(sheetsEl, 'sheet') : []
+  for (const [bookIndex, s] of sheetEls.entries()) {
     const rel = rels.find((r) => r.id === attr(s, 'id'))
     if (!rel || !rel.type.endsWith('/worksheet')) continue // 차트 시트 등은 건너뛴다
     const state = s.getAttribute('state')
-    wb.sheets.push(await readSheet(wb, s.getAttribute('name') ?? '시트', rel.target, state === 'hidden' || state === 'veryHidden', shared))
+    wb.sheets.push(await readSheet(wb, s.getAttribute('name') ?? '시트', rel.target, state === 'hidden' || state === 'veryHidden', shared, bookIndex))
   }
   if (!wb.sheets.length) throw new Error('이 파일에는 볼 수 있는 시트가 없습니다.')
+  // 인쇄 영역 (이름 _xlnm.Print_Area)
+  const names = child(book.documentElement, 'definedNames')
+  for (const n of names ? children(names, 'definedName') : []) {
+    if (n.getAttribute('name') !== '_xlnm.Print_Area') continue
+    const sheet = wb.sheets.find((sh) => sh.bookIndex === Number(n.getAttribute('localSheetId')))
+    if (sheet) sheet.printArea = parsePrintArea(n.textContent ?? '', sheet)
+  }
   return wb
 }
 
 export async function openXlsx(file: Blob, fileName: string): Promise<Workbook> {
   return readWorkbook(await loadZip(file), fileName)
+}
+
+// ── 인쇄 영역 ───────────────────────────────────────
+/** "'시트'!$A$1:$G$40" → 범위 (여러 범위면 첫 번째, 열·행 전체 지정도 처리) */
+function parsePrintArea(text: string, sheet: XSheet): Range | null {
+  let first = ''
+  let quoted = false
+  for (const ch of text) {
+    if (ch === "'") quoted = !quoted
+    if (ch === ',' && !quoted) break
+    first += ch
+  }
+  const ref = first.slice(first.lastIndexOf('!') + 1).replace(/\$/g, '')
+  const [a, b = a] = ref.split(':')
+  const col = (x: string) => parseRef(`${x}1`).c
+  if (/^[A-Z]+$/i.test(a) && /^[A-Z]+$/i.test(b)) return { r1: 1, c1: col(a), r2: Math.max(sheet.rows, 1), c2: col(b) }
+  if (/^\d+$/.test(a) && /^\d+$/.test(b)) return { r1: Number(a), c1: 1, r2: Number(b), c2: Math.max(sheet.cols, 1) }
+  const s = parseRef(a)
+  const e = parseRef(b)
+  if (!s.r || !e.r) return null
+  return { r1: Math.min(s.r, e.r), c1: Math.min(s.c, e.c), r2: Math.max(s.r, e.r), c2: Math.max(s.c, e.c) }
+}
+
+export function rangeText(r: Range) {
+  const a = cellRef(r.r1, r.c1)
+  const b = cellRef(r.r2, r.c2)
+  return a === b ? a : `${a}:${b}`
+}
+
+/** 인쇄 영역 지정·해제 (저장하면 엑셀에서도 같은 인쇄 영역이 쓰인다) */
+export function setPrintArea(wb: Workbook, sheetIndex: number, range: Range | null) {
+  wb.sheets[sheetIndex].printArea = range
+  wb.printAreaChanged = true
+}
+
+async function writePrintAreas(wb: Workbook) {
+  const book = parseXml(await wb.zip.file(wb.bookPath)!.async('string'))
+  const root = book.documentElement
+  const ns = root.namespaceURI ?? MAIN
+  let names = child(root, 'definedNames')
+  if (names) for (const n of children(names, 'definedName')) if (n.getAttribute('name') === '_xlnm.Print_Area') names.removeChild(n)
+  for (const sheet of wb.sheets) {
+    if (!sheet.printArea) continue
+    if (!names) {
+      names = makeEl(book, ns, 'definedNames', root)
+      // definedNames 는 sheets(·functionGroups·externalReferences) 다음, calcPr 앞 자리
+      const after = ['calcPr', 'oleSize', 'customWorkbookViews', 'pivotCaches', 'smartTagPr', 'smartTagTypes', 'webPublishing', 'fileRecoveryPr', 'webPublishObjects', 'extLst']
+      root.insertBefore(names, Array.from(root.children).find((el) => after.includes(el.localName)) ?? null)
+    }
+    const n = makeEl(book, ns, 'definedName', root)
+    n.setAttribute('name', '_xlnm.Print_Area')
+    n.setAttribute('localSheetId', String(sheet.bookIndex))
+    const p = sheet.printArea
+    n.textContent = `'${sheet.name.replace(/'/g, "''")}'!$${colName(p.c1)}$${p.r1}:$${colName(p.c2)}$${p.r2}`
+    names.appendChild(n)
+  }
+  if (names && !names.children.length) root.removeChild(names)
+  writeXml(wb.zip, wb.bookPath, book)
+  wb.printAreaChanged = false
 }
 
 // ── 새 문서 ─────────────────────────────────────────
@@ -450,6 +572,7 @@ export async function saveXlsx(wb: Workbook): Promise<Blob> {
     calc.setAttribute('fullCalcOnLoad', '1')
     writeXml(wb.zip, wb.bookPath, book)
   }
+  if (wb.printAreaChanged) await writePrintAreas(wb)
   wb.changed.clear()
   wb.formulaChanged = false
   return wb.zip.generateAsync({ type: 'blob', mimeType: XLSX_MIME, compression: 'DEFLATE' })
