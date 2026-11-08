@@ -4,6 +4,8 @@ import { cellRef, colName, rangeText, setCell, setCellStyle, setColWidths, setPr
 import { cellCss, colWidth, inRange, mergeLayout, mergeOrigin, normRange, parseTsv, rowHeight, shiftFormula, toTsv, usedRange } from './sheetRender'
 import { SheetPrint, SheetPrintDialog, type SheetPrintJob } from './Print'
 import { ZoomControl, loadZoom, saveZoom } from './Zoom'
+import { copyRangeImage, rangeImageBlob, renderRange } from './sheetImage'
+import { downloadBlob } from '../download'
 
 const PAGE_ROWS = 500 // 한 번에 그리는 행 수 (큰 시트도 버벅이지 않게)
 const MAX_COLS = 200
@@ -372,6 +374,31 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
     }
   }
 
+  // ── 그림으로 복사 (카카오톡·문서에 표를 그림으로 붙여넣기) ──
+  /** 여러 칸을 골랐으면 그 범위, 한 칸만 골랐으면 인쇄 영역 또는 내용 있는 범위 전체 */
+  function imageRange(): Range {
+    if (!(sel.r1 === sel.r2 && sel.c1 === sel.c2)) return { ...sel }
+    return sheet.printArea ?? used
+  }
+  async function copyAsImage() {
+    setMenu(null)
+    const range = imageRange()
+    const canvas = renderRange(wb, sheet, range)
+    const ok = await copyRangeImage(canvas)
+    if (ok) setNotice(`${rangeText(range)} 범위를 그림으로 복사했습니다. 카카오톡·문서 등에 Ctrl+V 로 붙여넣으세요.`)
+    else {
+      downloadBlob(await rangeImageBlob(canvas), `${sheet.name}-${rangeText(range).replace(':', '-')}.png`)
+      setNotice('브라우저가 그림 복사를 막아서 PNG 파일로 저장했습니다 (다운로드 폴더).')
+    }
+    gridRef.current?.focus()
+  }
+  async function saveAsImage() {
+    setMenu(null)
+    const range = imageRange()
+    downloadBlob(await rangeImageBlob(renderRange(wb, sheet, range)), `${sheet.name}-${rangeText(range).replace(':', '-')}.png`)
+    setNotice(`${rangeText(range)} 범위를 PNG 그림 파일로 저장했습니다 (다운로드 폴더).`)
+  }
+
   // 키보드(Ctrl+X/C/V): 브라우저의 잘라내기·복사·붙여넣기 이벤트로 처리 → 다른 프로그램과도 주고받기
   function onCopy(e: ClipboardEvent, cut = false) {
     if (e.target !== gridRef.current) return
@@ -525,6 +552,9 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
         </button>
         <button className={tool} onClick={() => pasteButton()} title="붙여넣기 (Ctrl+V) — 오른쪽 클릭 메뉴에 '값만 붙여넣기'도 있음">
           📋 붙여넣기
+        </button>
+        <button className={tool} onClick={copyAsImage} title="고른 범위를 그림으로 복사 (한 칸만 골랐으면 표 전체) — 카카오톡·문서에 그림으로 붙여넣기">
+          📷 그림으로 복사
         </button>
         <span className="mx-1 h-5 w-px bg-cream-300" />
         <button className={tool} onClick={() => autoFit('col', Array.from({ length: sel.c2 - sel.c1 + 1 }, (_, i) => sel.c1 + i))} title="고른 열의 너비를 내용에 맞춤 (열 머리글 경계를 두 번 눌러도 됨)">
@@ -784,13 +814,16 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
           <div className="fixed inset-0 z-40" onMouseDown={() => setMenu(null)} onContextMenu={(e) => (e.preventDefault(), setMenu(null))} />
           <div
             className="fixed z-50 w-52 rounded-xl border border-cream-300 bg-white py-1 text-sm shadow-lg"
-            style={{ left: Math.min(menu.x, window.innerWidth - 216), top: Math.min(menu.y, window.innerHeight - 300) }}
+            style={{ left: Math.min(menu.x, window.innerWidth - 216), top: Math.min(menu.y, window.innerHeight - 380) }}
           >
             {[
               { label: '✂ 잘라내기', key: 'Ctrl+X', run: () => copyButton(true) },
               { label: '⧉ 복사', key: 'Ctrl+C', run: () => copyButton(false) },
               { label: '📋 붙여넣기', key: 'Ctrl+V', run: () => pasteButton() },
               { label: '값만 붙여넣기', run: () => pasteButton(true) },
+              null,
+              { label: '📷 그림으로 복사', run: copyAsImage },
+              { label: '그림으로 저장 (PNG)', run: saveAsImage },
               null,
               { label: '내용 지우기', key: 'Delete', run: () => (setMenu(null), clearRange()) },
               null,
