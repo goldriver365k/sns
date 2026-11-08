@@ -3,11 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import MyDesigns from '../components/photo/MyDesigns'
 import { prepareImage } from '../lib/images'
-import { SIZES, type PhotoSettings, type SizeId, type TextLayer } from '../photo/compose'
-import { POSTER_SETS } from '../components/photo/TextPanel'
-import { getEditor, openPhoto, useEditor, type EditorTool } from '../photo/editorStore'
+import { SIZES, targetSize, type PhotoSettings, type SizeId, type TextLayer } from '../photo/compose'
+import { POSTER_SETS, TYPO_SETS } from '../components/photo/TextPanel'
+import { renderSample, SAMPLE_BGS } from '../photo/sampleBgs'
+import { getEditor, openPhoto, patchDoc, setEditor, useEditor, type EditorTool } from '../photo/editorStore'
 
-type Tile = { id: string; icon: string; label: string; desc: string; tool: EditorTool; preset?: Partial<PhotoSettings>; texts?: Omit<TextLayer, 'id'>[] }
+/** noPhoto: 사진 없이 시작 (글자 포스터) */
+type Tile = { id: string; icon: string; label: string; desc: string; tool: EditorTool; preset?: Partial<PhotoSettings>; texts?: Omit<TextLayer, 'id'>[]; noPhoto?: boolean }
 
 /** 홈 화면 도구: 누르면 사진을 고르고, 그 도구가 열린 편집기로 간다 */
 const TILES: Tile[] = [
@@ -20,6 +22,8 @@ const TILES: Tile[] = [
   { id: 'text', icon: '🔤', label: '글자 넣기', desc: '가격·문구·할인 띠', tool: 'text' },
   // 포스터: 사진을 그대로 배경으로 깔고 A4 세로 + 행사 포스터 문구로 시작 (글자 패널에서 세트·글꼴 변경)
   { id: 'poster', icon: '🪧', label: '포스터 만들기', desc: 'A4·A3 인쇄용, 사진 배경 + 글자', tool: 'text', preset: { size: 'a4', bg: 'photo', showProduct: false }, texts: POSTER_SETS[0].layers },
+  // 글자 포스터: 사진 없이 샘플 배경 + 글자만 (타이포그래피 포스트)
+  { id: 'typo', icon: '🅰️', label: '글자 포스터', desc: '그림 없이 글자만, 사진 필요 없음', tool: 'text', preset: { bg: 'image', showProduct: false, shadow: 'none' }, texts: TYPO_SETS[0].layers, noPhoto: true },
   { id: 'video', icon: '🎞', label: '제품 영상 (AI)', desc: '사진을 움직이는 영상으로', tool: 'video' },
   { id: 'reel', icon: '🎬', label: '릴스 만들기', desc: '자막·음악 넣은 MP4', tool: 'video' },
 ]
@@ -47,7 +51,39 @@ export default function PhotoHome() {
     }
   }
 
+  /** 사진 없이 시작: 빈 바탕을 원본 대신 쓰고, 기본 샘플 배경(크림)과 글자 세트로 연다 */
+  async function startWithoutPhoto(tile: Tile) {
+    setError(null)
+    try {
+      const s = size === 'original' ? 'portrait' : size
+      const out = targetSize({ ...getEditor().design.settings, size: s }, 1080, 1350)
+      const blank = document.createElement('canvas')
+      blank.width = out.w
+      blank.height = out.h
+      const bctx = blank.getContext('2d')!
+      bctx.fillStyle = '#ffffff'
+      bctx.fillRect(0, 0, out.w, out.h)
+      const blob = await new Promise<Blob>((res, rej) => blank.toBlob((b) => (b ? res(b) : rej(new Error('바탕을 만들지 못했습니다.'))), 'image/png'))
+      const img = await prepareImage(blob, 'file')
+      // 상품이 없으므로 투명한 1px 그림을 상품 자리로 둔다 (배경 지우기 없음)
+      const none = document.createElement('canvas')
+      none.width = 1
+      none.height = 1
+      openPhoto(img, tile.tool, { ...tile.preset, size: s }, { canvas: none, x: 0, y: 0 }, tile.texts)
+      const sample = SAMPLE_BGS.find((x) => x.id === 'cream') ?? SAMPLE_BGS[0]
+      const el = await renderSample(sample, out.w, out.h)
+      const id = `sample-${sample.id}-${Date.now().toString(36)}`
+      setEditor((st) => ({ aiBgs: [{ id, url: el.src, el, prompt: `샘플 배경: ${sample.name}`, kind: 'image' }, ...st.aiBgs], design: { ...st.design, aiBgId: id } }))
+      const d = new Date()
+      patchDoc({ title: `글자 포스터 ${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}` })
+      navigate('/photo/edit')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '글자 포스터를 시작하지 못했습니다.')
+    }
+  }
+
   function pick(tile: Tile | null) {
+    if (tile?.noPhoto) return void startWithoutPhoto(tile)
     pending.current = tile
     fileRef.current?.click()
   }

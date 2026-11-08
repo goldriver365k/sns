@@ -321,6 +321,7 @@ PC와 모바일 모두 대응한다.
 | Pretendard | SIL OFL 1.1 | 가능 | 가능 |
 | 개구체 Bold(Gaegu) — 털복이 숏폼 | SIL OFL 1.1 (Google Fonts) | 가능 | 가능 |
 | 검은고딕(Black Han Sans) — 핵심어 타이포 | SIL OFL 1.1 (Google Fonts) | 가능 | 가능 |
+| 상품 사진 편집 무료 사진 찾기 배경(2026-11-08) | Openverse에서 CC0 1.0·Public Domain Mark만 (저작권 표시 불필요) | 가능 | 가능 |
 | 상품 사진 편집 글자(2026-11-03 추가): 나눔고딕·나눔명조·나눔펜(Nanum Pen Script)·도현(Do Hyeon)·검은고딕·고운돋움·고운바탕·본명조(Noto Serif KR)·송명(Song Myung)·개구(Gaegu)·동글(Dongle)·연성(Yeon Sung)·해바라기(Sunflower)·동해독도(East Sea Dokdo) | SIL OFL 1.1 (Google Fonts, `@fontsource` 패키지 license 필드로 확인) | 가능 | 가능 |
 | 카페24 써라운드에어 | 카페24 자체 무료 폰트 라이선스 | 가능 | 가능(상업 이용 허용). 단 폰트 파일 자체의 판매·수정·재배포 판매는 금지 |
 
@@ -440,6 +441,18 @@ PC와 모바일 모두 대응한다.
 - 배경 1장으로 넣은 사진 전부에 같은 배경을 쓴다(사용료 절약). 만든 배경은 최근 6개를 이 화면에서 골라 쓰고, 화면을 닫으면 사라진다(저장 안 함).
 - AI 배경을 만들기 전·설정이 없을 때는 스튜디오 배경으로 보여 준다. 오류는 서버 안내(설정 없음, 조직 인증 필요, 안전 정책 등)를 그대로 표시.
 
+### 배경 더 고르기 + 글자 포스터 (사용자 요청 2026-11-08: "배경이 너무 단순 — 붙여넣기·말로 적기·샘플 찾기, 그림 없이 글자만 들어가는 타이포 포스트")
+
+- 배경 종류 **사진·샘플**(전 "내 사진", `src/components/photo/BgLibraryPanel.tsx`) — 고른 배경은 모두 사진 배경(`bg: 'image'`, AiBackground `kind: 'image'`)으로 들어가 저장·다시 열기가 기존 내 사진 배경과 같다.
+  - **내 사진·붙여넣기**: [📁 내 사진 올리기], [📋 붙여넣기](클립보드 읽기). 편집기에서 **배경 도구가 열려 있을 때 Ctrl+V** 하면 붙여넣은 사진이 배경으로 들어간다(다른 도구에서는 기존처럼 새 상품 사진으로 편집).
+  - **기본 샘플** (`src/photo/sampleBgs.ts`): 앱이 직접 그리는 배경 20종(그라데이션 8·패턴 4·질감 4·계절·분위기 4) — 외부 사진이 아니라 저작권 걱정 없음. 이름·묶음·낱말로 찾기(예: 겨울 → 눈). 결과 비율로 긴 변 1600px까지 그린다.
+  - **무료 사진 찾기** (`netlify/functions/bg-search.ts`, `src/photo/bgSearch.ts`): Openverse(가입·키 없음)에서 **CC0·퍼블릭 도메인 사진만** 찾는다(저작권 표시 없이 상업 이용 가능). 한글 배경 낱말은 영어로 바꿔 찾음(원목 → wood 등). 고르면 서버가 사진을 대신 받아 돌려준다(다른 사이트 사진을 캔버스에 그리면 저장이 막히므로). 원본 사이트가 거절하면 Openverse가 주는 원본 크기 그림 → 작은 그림 순. 4MB 이하. 고른 배경 아래에 제목·작가·출처·라이선스 표시.
+  - **말로 적기**는 기존 ✨ AI 배경(장면 버튼 + 설명 입력).
+- **글자 포스터** (홈 타일 🅰️, 사진 필요 없음): 고른 크기의 흰 바탕을 원본 대신 쓰고 상품 자리에는 투명 1px(배경 지우기 없음), 상품 숨김·그림자 없음, 기본 샘플 "크림" 배경 + 글자 세트 "큰 제목형"으로 편집기를 연다.
+  - 글자 패널에 **글자 포스터 세트** 4종(큰 제목형·인용문형·공지형·숫자 강조형) 추가.
+  - 상품을 숨긴 디자인(포스터·글자 포스터)에서는 캔버스 빈 곳을 눌러도 보이지 않는 상품이 잡히지 않게 수정(`EditorStage`).
+- 테스트: 글자 포스터 시작(크림 배경 + 글자 3개), 샘플 찾기 "겨울" → 눈, 샘플 20종·밤하늘 적용, 무료 사진 찾기(가짜 서버 응답) 검색어 "원목 테이블" → "wood table"·적용·출처 표시, 배경 도구에서 Ctrl+V → 배경, PNG 저장, 서버 함수(가짜 Openverse) 로그인 확인·CC0/PDM만·잘못된 번호 거절·큰 원본 대신 작은 그림. 실제 Openverse 검색·미리보기 그림은 이 환경에서 응답 확인. 페이지 오류 0건.
+
 ### 릴스·영상으로 만들기 (사용자 요청 2026-11-02, `src/reels/fromPhotos.ts`, `src/components/PhotoReelDialog.tsx`)
 
 - 결과 위 [🎬 릴스·영상 만들기] → 상품 이름·한 줄 소개·가격(선택)·길이(10/15/30초) → **AI 자동 릴스 새 프로젝트**로 옮기고 그 화면을 연다(지금 릴스는 먼저 저장).
@@ -543,6 +556,7 @@ PC와 모바일 모두 대응한다.
 - `POST /.netlify/functions/tteolbok-copy` / `tteolbok-voice`: 털복이 숏폼 문구(JSON 스키마)·한국어 AI 음성(mp3). 같은 관리자 토큰 검증. 상세: docs/REELS.md
 - `POST /.netlify/functions/reel-script`: 자동 릴스 대본(mode: topic 주제로 새로 / rewrite 붙여넣은 글 다듬기 / scene 장면 하나 다시 쓰기, JSON 스키마). 같은 관리자 토큰 검증. 안내문·정리 규칙은 `shared/reelScript.ts`(로컬 AI도 같은 규칙). 상세: docs/REELS.md
 - `POST /.netlify/functions/reel-voice`: 자동 릴스 장면 나레이션(mp3 base64). `{ text(200자), voice, style, speed }`, 선택지는 `shared/reelVoice.ts`. 같은 관리자 토큰 검증. 모델은 `OPENAI_TTS_MODEL`(기본 gpt-4o-mini-tts).
+- `POST /.netlify/functions/bg-search`: 배경용 무료 사진 찾기(`{ q, page }`)·받기(`{ imageId }`, base64). Openverse CC0·퍼블릭 도메인만. 같은 관리자 토큰 검증. 상세: 7-1
 - `POST /.netlify/functions/keyword-copy`: 핵심어 타이포 장면 문구(주제 → 장면별 핵심어·문장, JSON 스키마). 같은 관리자 토큰 검증. 상세: docs/REELS.md
 - `GET /.netlify/functions/health`: 관리자 토큰 확인 후 환경변수 유무만 알려준다(값 비공개). 운영 설정의 [서버 연결 점검]에서 사용.
 - 오류 메시지에 HTTP 상태와 OpenAI가 알려준 원인을 함께 표시한다(관리자 전용 화면).

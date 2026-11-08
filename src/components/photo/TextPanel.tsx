@@ -57,6 +57,44 @@ export const POSTER_SETS: { label: string; layers: Layer[] }[] = [
   },
 ]
 
+/** 글자 포스터(그림 없이 글자만) 세트: 밝은 샘플 배경 위에서 잘 읽히게 진한 글자 */
+export const TYPO_SETS: { label: string; layers: Layer[] }[] = [
+  {
+    label: '큰 제목형',
+    layers: [
+      { text: '오늘의 한마디', x: 0.5, y: 0.14, size: 46, font: 'pretendard', bold: true, box: '', color: '#1f4d3a' },
+      { text: '불로 굽고\n밥으로 완성하다', x: 0.5, y: 0.45, size: 150, font: 'blackhan', bold: false, box: '', color: '#111111' },
+      { text: 'bulbaek.com', x: 0.5, y: 0.9, size: 44, font: 'pretendard', bold: true, box: '', color: '#111111' },
+    ],
+  },
+  {
+    label: '인용문형',
+    layers: [
+      { text: '“', x: 0.5, y: 0.22, size: 260, font: 'notoserif', bold: true, box: '', color: '#d6332a' },
+      { text: '작은 배려가\n큰 신뢰를 만듭니다', x: 0.5, y: 0.48, size: 104, font: 'nanummyeongjo', bold: true, box: '', color: '#111111' },
+      { text: '— 오늘의 문장', x: 0.5, y: 0.72, size: 46, font: 'gowunbatang', bold: false, box: '', color: '#555555' },
+    ],
+  },
+  {
+    label: '공지형',
+    layers: [
+      { text: '공지', x: 0.5, y: 0.16, size: 80, font: 'blackhan', bold: false, box: '#d6332a', color: '#ffffff' },
+      { text: '11월 30일(토)은\n임시 휴무입니다', x: 0.5, y: 0.46, size: 110, font: 'dohyeon', bold: false, box: '', color: '#111111' },
+      { text: '이용에 불편을 드려 죄송합니다', x: 0.5, y: 0.7, size: 50, font: 'pretendard', bold: true, box: '', color: '#333333' },
+      { text: '화산불백', x: 0.5, y: 0.9, size: 44, font: 'pretendard', bold: true, box: '', color: '#111111' },
+    ],
+  },
+  {
+    label: '숫자 강조형',
+    layers: [
+      { text: '단 3일', x: 0.5, y: 0.2, size: 90, font: 'dohyeon', bold: false, box: '', color: '#111111' },
+      { text: '50%', x: 0.5, y: 0.45, size: 320, font: 'blackhan', bold: false, box: '', color: '#d6332a' },
+      { text: '전 메뉴 할인', x: 0.5, y: 0.68, size: 96, font: 'blackhan', bold: false, box: '', color: '#111111' },
+      { text: '11.01 – 11.03', x: 0.5, y: 0.86, size: 50, font: 'pretendard', bold: true, box: '', color: '#333333' },
+    ],
+  },
+]
+
 const ALIGNS: { value: TextAlign; label: string }[] = [
   { value: 'left', label: '왼쪽' },
   { value: 'center', label: '가운데' },
@@ -99,6 +137,14 @@ export default function TextPanel({ texts, selectedId, onAdd, onAddMany, onSelec
         <p className="mt-3 mb-2 text-sm font-semibold text-forest-900">포스터 문구 세트</p>
         <div className="grid grid-cols-2 gap-1.5">
           {POSTER_SETS.map((p) => (
+            <button key={p.label} type="button" onClick={() => onAddMany(p.layers)} className="rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm text-ink hover:border-forest-500">
+              ＋ {p.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 mb-2 text-sm font-semibold text-forest-900">글자 포스터 세트 (그림 없이)</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {TYPO_SETS.map((p) => (
             <button key={p.label} type="button" onClick={() => onAddMany(p.layers)} className="rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm text-ink hover:border-forest-500">
               ＋ {p.label}
             </button>

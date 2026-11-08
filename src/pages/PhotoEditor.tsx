@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 import AiBgPanel, { MAX_AI_BACKGROUNDS, type AiBackground } from '../components/AiBgPanel'
+import BgLibraryPanel from '../components/photo/BgLibraryPanel'
 import EditorStage, { type Selection } from '../components/photo/EditorStage'
 import SizePicker from '../components/photo/SizePicker'
 import TextPanel from '../components/photo/TextPanel'
@@ -29,7 +30,7 @@ const BG_KINDS: { value: BgKind; label: string }[] = [
   { value: 'blur', label: '원본 흐리게' },
   { value: 'transparent', label: '투명' },
   { value: 'photo', label: '원본 사진' },
-  { value: 'image', label: '내 사진' },
+  { value: 'image', label: '사진·샘플' },
   { value: 'ai', label: '✨ AI 배경' },
 ]
 
@@ -159,18 +160,24 @@ export default function PhotoEditor() {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  // 새 사진 붙여넣기 → 그 사진으로 새로 편집
+  // 붙여넣기: 배경 도구에서는 붙여넣은 사진을 배경으로, 다른 도구에서는 그 사진으로 새로 편집
+  // (항상 지금 화면 상태로 처리하도록 참조로 둔다)
+  const pasteRef = useRef<(file: File) => void>(() => undefined)
+  pasteRef.current = (file) => {
+    if (tool === 'background') {
+      void addBgPhoto(file).then(() => flash('붙여넣은 사진을 배경으로 넣었습니다.'))
+    } else openNew(file)
+  }
   useEffect(() => {
     function onPaste(e: ClipboardEvent) {
       const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
       if (!file) return
       e.preventDefault()
-      openNew(file)
+      pasteRef.current(file)
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tool])
+  }, [])
 
   if (!doc) return <Navigate to="/photo" replace />
 
@@ -194,13 +201,17 @@ export default function PhotoEditor() {
     update({ aiBgId: bg.id })
   }
 
+  /** 샘플·무료 사진·내 사진을 사진 배경으로 넣고 고른다 */
+  function addImageBg(bg: AiBackground) {
+    setEditor((s) => ({ aiBgs: [bg, ...s.aiBgs].slice(0, MAX_AI_BACKGROUNDS * 2) }))
+    update({ aiBgId: bg.id, settings: { ...design.settings, bg: 'image' } })
+  }
+
   /** 내 사진을 배경으로 올리기 */
   async function addBgPhoto(file: Blob) {
     try {
       const img = await prepareImage(file, 'file')
-      const bg: AiBackground = { id: img.id, url: img.url, el: img.el, prompt: '내 사진', kind: 'image' }
-      setEditor((s) => ({ aiBgs: [bg, ...s.aiBgs].slice(0, MAX_AI_BACKGROUNDS * 2) }))
-      update({ aiBgId: bg.id, settings: { ...design.settings, bg: 'image' } })
+      addImageBg({ id: img.id, url: img.url, el: img.el, prompt: '내 사진', kind: 'image' })
     } catch (e) {
       flash(e instanceof Error ? e.message : '사진을 넣지 못했습니다.')
     }
@@ -412,22 +423,19 @@ export default function PhotoEditor() {
               {design.settings.bg === 'transparent' && <p className="text-xs text-muted">투명 배경은 PNG로 저장되어 다른 디자인에 그대로 얹을 수 있습니다.</p>}
               {design.settings.bg === 'photo' && <p className="text-xs text-muted">처음 넣은 사진을 그대로 배경으로 씁니다. 포스터처럼 사진 위에 글자만 얹을 때 좋습니다.</p>}
               {design.settings.bg === 'image' && (
-                <div className="space-y-2 rounded-xl border border-cream-300 bg-white p-3">
-                  <button type="button" onClick={() => bgFileRef.current?.click()} className="w-full rounded-lg bg-forest-700 px-4 py-2 text-sm font-semibold text-cream-50 hover:bg-forest-900">
-                    ＋ 배경으로 쓸 사진 올리기
-                  </button>
-                  {myPhotos.length > 0 && (
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {myPhotos.map((b, i) => (
-                        <button key={b.id} type="button" aria-label={`내 사진 배경 ${i + 1}`} aria-pressed={b.id === design.aiBgId} onClick={() => update({ aiBgId: b.id })} className={`overflow-hidden rounded-lg border-2 ${b.id === design.aiBgId ? 'border-forest-700' : 'border-transparent'}`}>
-                          <img src={b.url} alt="" className="aspect-square w-full object-cover" />
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {!aiBg && <p className="text-xs text-muted">사진을 올리기 전까지는 스튜디오 배경으로 보여 줍니다.</p>}
-                  <p className="text-xs text-muted">가게 사진, 풍경, 행사장 사진 등을 배경으로 깔고 상품과 글자를 얹습니다.</p>
-                </div>
+                <>
+                  <BgLibraryPanel
+                    outW={out.w}
+                    outH={out.h}
+                    photos={myPhotos}
+                    selectedId={design.aiBgId}
+                    onAdd={addImageBg}
+                    onSelect={(id) => update({ aiBgId: id })}
+                    onUpload={() => bgFileRef.current?.click()}
+                    onPasteBlob={(b) => void addBgPhoto(b)}
+                  />
+                  {!aiBg && <p className="text-xs text-muted">배경을 고르기 전까지는 스튜디오 배경으로 보여 줍니다.</p>}
+                </>
               )}
               <ProductToggle settings={design.settings} onChange={patchSettings} />
               <input

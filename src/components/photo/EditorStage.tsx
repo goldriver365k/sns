@@ -80,6 +80,8 @@ export default function EditorStage({ src, settings, transform, texts, selected,
       const t = layout.texts[i]
       if (Math.abs(x - t.cx) <= t.w / 2 && Math.abs(y - t.cy) <= t.h / 2) return t.id
     }
+    // 상품을 숨긴 디자인(포스터·글자 포스터)에서는 보이지 않는 상품을 잡지 않는다
+    if (settings.showProduct === false) return null
     const p = layout.product
     const a = (-p.rotate * Math.PI) / 180
     const dx = x - p.cx
