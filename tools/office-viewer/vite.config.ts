@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // 고칠 때마다 올린다. 화면과 파일 이름에 붙어 예전 파일과 헷갈리지 않게 한다
-const VERSION = '5'
+const VERSION = '6'
 const OUT_NAME = `엑셀워드도구-v${VERSION}.html`
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 

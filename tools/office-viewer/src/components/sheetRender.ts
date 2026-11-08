@@ -159,3 +159,67 @@ export function shiftFormula(input: string, dr: number, dc: number): string {
     })
     .join('')
 }
+
+/** React 스타일 객체 → CSS 글 (클립보드 HTML 용) */
+function cssText(css: CSSProperties): string {
+  return Object.entries(css)
+    .filter(([, v]) => v !== undefined && v !== '')
+    .map(([k, v]) => `${k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}:${v}`)
+    .join(';')
+}
+const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+
+/** 범위를 서식 있는 HTML 표로 (엑셀·워드·한글에 붙여넣으면 색·테두리·병합이 유지됨) */
+export function rangeHtml(wb: Workbook, sheet: XSheet, range: Range): string {
+  const { spans, covered } = mergeLayout(sheet, range)
+  const rows: string[] = []
+  for (let r = range.r1; r <= range.r2; r++) {
+    if (rowHeight(sheet, r) === 0) continue
+    const tds: string[] = []
+    for (let c = range.c1; c <= range.c2; c++) {
+      const k = cellRef(r, c)
+      if (covered.has(k) || colWidth(sheet, c) === 0) continue
+      const span = spans.get(k)
+      const origin = span ? mergeOrigin(sheet, r, c) : k
+      const v = sheet.cells.get(origin)
+      const css = { ...cellCss(wb, sheet, origin, v), width: `${colWidth(sheet, c)}px`, height: `${rowHeight(sheet, r)}px` }
+      const attrs = `${span && span.rows > 1 ? ` rowspan="${span.rows}"` : ''}${span && span.cols > 1 ? ` colspan="${span.cols}"` : ''}`
+      tds.push(`<td${attrs} style="${cssText(css).replace(/"/g, "'")}">${esc(v?.value ?? '')}</td>`)
+    }
+    rows.push(`<tr>${tds.join('')}</tr>`)
+  }
+  return `<table style="border-collapse:collapse">${rows.join('')}</table>`
+}
+
+/**
+ * 클립보드에 글·HTML 을 넣는다. 버튼을 누른 그 순간 브라우저의 '복사' 명령을 써서
+ * 파일을 바로 연(file://) 경우에도 막히지 않게 하고, 안 되면 클립보드 API 로 한 번 더 시도한다.
+ */
+export async function writeClipboard(text: string, html?: string): Promise<boolean> {
+  let done = false
+  const onCopy = (e: globalThis.ClipboardEvent) => {
+    if (!e.clipboardData) return
+    e.clipboardData.setData('text/plain', text)
+    if (html) e.clipboardData.setData('text/html', html)
+    e.preventDefault()
+    e.stopImmediatePropagation() // 표의 Ctrl+C 처리가 다시 돌지 않게
+    done = true
+  }
+  document.addEventListener('copy', onCopy, true)
+  try {
+    document.execCommand('copy')
+  } catch {
+    // 아래에서 다시 시도
+  } finally {
+    document.removeEventListener('copy', onCopy, true)
+  }
+  if (done) return true
+  try {
+    if (html && typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+      await navigator.clipboard.write([new ClipboardItem({ 'text/plain': new Blob([text], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) })])
+    } else await navigator.clipboard.writeText(text)
+    return true
+  } catch {
+    return false
+  }
+}

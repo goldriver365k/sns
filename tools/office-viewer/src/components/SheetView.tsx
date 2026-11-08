@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject } from 'react'
 import { flushSync } from 'react-dom'
 import { cellRef, colName, rangeText, setCell, setCellStyle, setColWidths, setPrintArea, setRowHeights, type Range, type Workbook } from '../office/xlsx'
-import { cellCss, colWidth, inRange, mergeLayout, mergeOrigin, normRange, parseTsv, rowHeight, shiftFormula, toTsv, usedRange } from './sheetRender'
+import { cellCss, colWidth, inRange, mergeLayout, mergeOrigin, normRange, parseTsv, rangeHtml, rowHeight, shiftFormula, toTsv, usedRange, writeClipboard } from './sheetRender'
 import { SheetPrint, SheetPrintDialog, type SheetPrintJob } from './Print'
 import { ZoomControl, loadZoom, saveZoom } from './Zoom'
 import { copyRangeImage, rangeImageBlob, renderRange } from './sheetImage'
@@ -404,6 +404,8 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
     if (e.target !== gridRef.current) return
     e.preventDefault()
     e.clipboardData.setData('text/plain', copySel(cut))
+    e.clipboardData.setData('text/html', rangeHtml(wb, sheet, sel))
+    setNotice(`${rangeText(sel)} ${cut ? '잘라냈습니다' : '복사했습니다'}. 붙여넣을 곳에서 Ctrl+V (다른 프로그램에도 됩니다).`)
   }
   function onPaste(e: ClipboardEvent) {
     if (e.target !== gridRef.current) return
@@ -412,10 +414,16 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
   }
 
   // 버튼·오른쪽 클릭 메뉴
-  function copyButton(cut: boolean) {
+  async function copyButton(cut: boolean) {
     setMenu(null)
+    const range = { ...sel }
     const text = copySel(cut)
-    navigator.clipboard?.writeText(text).catch(() => {}) // 다른 프로그램에 붙여넣을 수 있게 (안 되면 이 안에서만)
+    const ok = await writeClipboard(text, rangeHtml(wb, sheet, range))
+    setNotice(
+      ok
+        ? `${rangeText(range)} ${cut ? '잘라냈습니다' : '복사했습니다'}. 붙여넣을 곳에서 Ctrl+V (다른 프로그램에도 됩니다).`
+        : `${rangeText(range)} ${cut ? '잘라냈습니다' : '복사했습니다'}. 브라우저가 클립보드를 막아 이 프로그램 안에서만 붙여넣을 수 있습니다 — 다른 프로그램에는 Ctrl+${cut ? 'X' : 'C'} 를 써 주세요.`,
+    )
     gridRef.current?.focus()
   }
   async function pasteButton(valuesOnly = false) {
