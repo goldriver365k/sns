@@ -8,7 +8,7 @@ import { downloadPng, downloadZip } from '../cards/export'
 import { MAX_IMAGES, prepareImage, type PickedImage } from '../lib/images'
 import { todayKst } from '../lib/contents'
 import CardCanvas, { type CardCheck } from './CardCanvas'
-import { btnGhost, btnPrimary } from './ui'
+import { btnGhost, btnPrimary, field } from './ui'
 
 type Props = {
   cards: CardText[]
@@ -37,7 +37,6 @@ type Drag = {
 
 const NAMES: Record<Target, string> = { title: '제목', body: '본문', emphasis: '강조 문구', image: '사진' }
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v))
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500'
 const section = 'space-y-2 rounded-xl border border-cream-300 bg-cream-50 p-3'
 const heading = 'text-sm font-semibold text-forest-900'
 

@@ -9,10 +9,8 @@ import { exportTteolbokMp4, pickAudioCodec, type TteolbokExport } from '../../tt
 import { drawTteolbokFrame, ensureTteolbokFonts, loadBear, TT_DESIGNS, TT_H, TT_W, type DesignId, type FrameInput } from '../../tteolbok/render'
 import { bandOf, useBrandStores } from '../../tteolbok/stores'
 import { estimateSeconds, makeCues, plain, voiceTexts } from '../../tteolbok/timeline'
+import { card as box, cardTitle as heading, field } from '../../components/ui'
 
-const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
-const heading = 'mb-2 text-sm font-bold text-forest-900'
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500'
 const LS_KEY = 'snsroom.tteolbok'
 
 const DEFAULT_COPY: TteolbokCopy = {

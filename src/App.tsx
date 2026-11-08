@@ -9,6 +9,7 @@ import OfflineBanner from './components/OfflineBanner'
 
 // 화면별로 나눠 내려받는다 (첫 화면을 빠르게)
 const Home = lazy(() => import('./pages/Home'))
+const DesignGuide = lazy(() => import('./pages/DesignGuide'))
 const CreatePost = lazy(() => import('./pages/CreatePost'))
 const TodayContents = lazy(() => import('./pages/TodayContents'))
 const ContentCalendar = lazy(() => import('./pages/ContentCalendar'))
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="photo/batch" element={<PhotoStudio />} />
         <Route path="history" element={<PastContents />} />
         <Route path="settings" element={<OpsSettings />} />
+        <Route path="settings/design" element={<DesignGuide />} />
         <Route path="reels" element={<ReelsLayout />}>
           <Route index element={<ReelStudio />} />
           <Route path="tteolbok" element={<TteolbokStudio />} />

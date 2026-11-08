@@ -1,8 +1,9 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import PageHeader from '../components/PageHeader'
 import BrandEditor from '../components/BrandEditor'
 import PlanEditor from '../components/PlanEditor'
-import { btnGhost, btnPrimary } from '../components/ui'
+import { btnGhost, btnPrimary, btnLink } from '../components/ui'
 import { checkServer } from '../lib/api'
 import { newId, useChannels, type Channel } from '../lib/channels'
 import { getSnsProfile } from '../lib/options'
@@ -143,7 +144,7 @@ function BrandManager() {
 export default function OpsSettings() {
   return (
     <div className="mx-auto max-w-4xl">
-      <PageHeader title="운영 설정" description="브랜드와 콘텐츠 계획을 관리하고, 서버 연결 상태를 확인합니다." />
+      <PageHeader title="운영 설정" description="브랜드와 콘텐츠 계획을 관리하고, 서버 연결 상태를 확인합니다." action={<Link to="/settings/design" className={btnLink}>디자인 가이드 →</Link>} />
       <BrandManager />
       <ServerCheck />
       <section className="rounded-2xl border border-dashed border-cream-300 bg-cream-50 p-5 text-sm text-muted">

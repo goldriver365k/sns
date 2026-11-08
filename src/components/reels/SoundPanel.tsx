@@ -6,9 +6,8 @@ import { VOICE_DELAY, VOICE_GAP, voiceSeconds } from '../../reels/sound'
 import { getProject, newSceneId, updateProject } from '../../reels/store'
 import type { ReelAudio, ReelDuration, ReelProject } from '../../reels/types'
 import { findVoice, getVoice, narration, voiceKey, voiceRequest } from '../../reels/voice'
+import { field, label } from '../ui'
 
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-forest-500'
-const label = 'mb-1 block text-xs text-muted'
 const DURATIONS: ReelDuration[] = [10, 15, 30, 60]
 
 /** 음성이 없을 때 대략의 읽기 시간 */

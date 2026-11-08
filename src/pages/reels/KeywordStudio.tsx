@@ -8,10 +8,8 @@ import { decodeVoiceList, fetchVoice, hasVoice, mixTrack, type Mix } from '../..
 import { exportCanvasMp4, pickAudioCodec, type TteolbokExport } from '../../tteolbok/exporter'
 import { bandOf, useBrandStores } from '../../tteolbok/stores'
 import { drawKwFrame, ensureKwFonts, KW_DESIGNS, KW_H, KW_W, sceneTimings, type KwDesignId, type KwFrame } from '../../keyword/render'
+import { card as box, cardTitle as heading, field } from '../../components/ui'
 
-const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
-const heading = 'mb-2 text-sm font-bold text-forest-900'
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500'
 const LS_KEY = 'snsroom.keyword'
 const plain = (s: string) => s.replace(/\*/g, '').trim()
 

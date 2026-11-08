@@ -20,11 +20,9 @@ import { LANGUAGES } from '../../lib/options'
 import type { ReelScriptBrand } from '../../../shared/reelScript'
 import { REEL_TEMPLATES } from '../../reels/templates'
 import type { ReelAsset, ReelDuration, ReelProject, ReelScene } from '../../reels/types'
+import { card as box, cardTitle as heading, field } from '../../components/ui'
 
 const DURATIONS: ReelDuration[] = [10, 15, 30, 60]
-const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-4'
-const heading = 'mb-2 text-sm font-bold text-forest-900'
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500'
 
 /** 자동 릴스 제작 화면: 왼쪽 설정 / 가운데 9:16 미리보기 / 오른쪽 실행 / 아래 타임라인 */
 export default function ReelStudio() {

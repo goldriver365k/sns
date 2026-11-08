@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { btnPrimary } from '../../components/ui'
+import { btnPrimary, emptyBox } from '../../components/ui'
 import { listReelDocs, type ReelListItem } from '../../reels/cloud'
 import { deleteProject, newProject, openProject, useSaveStatus } from '../../reels/persist'
 import { useReelProject } from '../../reels/store'
@@ -72,7 +72,7 @@ export default function ReelProjects() {
       {error && <p className="text-sm text-red-700">{error}</p>}
       {items === null && !error && <p className="text-sm text-muted">불러오는 중…</p>}
       {items?.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-cream-300 bg-cream-50 p-8 text-center text-sm text-muted">
+        <div className={emptyBox}>
           아직 저장된 프로젝트가 없습니다. [자동 릴스] 탭에서 대본이나 사진을 넣으면 자동으로 저장됩니다.
         </div>
       )}

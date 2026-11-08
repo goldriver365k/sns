@@ -16,6 +16,15 @@
   --color-forest-900: #3a1a7a;
   --color-ink: #0e1318;
   --color-muted: #6b6f80;
+  /* 상태 색 */
+  --color-ok: #0f8a5f;
+  --color-warn: #b45309;
+  --color-danger: #c62828;
+  /* 그림자: 카드(평소) / 떠 있는 것(팝업·강조) — 보라 기운이 살짝 도는 그림자 */
+  --shadow-card: 0 1px 2px rgb(14 19 24 / 0.04), 0 4px 14px rgb(125 42 232 / 0.05);
+  --shadow-pop: 0 10px 30px rgb(125 42 232 / 0.16);
+  /* 모서리: 큰 영역 28px / 카드 16px(rounded-2xl) / 입력·버튼 12px(rounded-xl) / 작은 칸 8px(rounded-lg) */
+  --radius-hero: 28px;
   --font-sans: 'Pretendard Variable', Pretendard, 'Noto Sans KR', system-ui, sans-serif;
 }
 

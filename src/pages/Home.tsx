@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { IconArchive, IconCalendar, IconFilm, IconImage, IconPen, IconSearch, IconSettings, IconSun, IconType, IconWand } from '../components/Icons'
+import { emptyBox } from '../components/ui'
 
 type Tool = {
   id: string
@@ -177,7 +178,7 @@ export default function Home() {
         </div>
         {recent === null && <p className="text-sm text-muted">불러오는 중…</p>}
         {recent !== null && !shownRecent.length && (
-          <div className="rounded-2xl border border-dashed border-cream-300 bg-cream-50 p-8 text-center text-sm text-muted">
+          <div className={emptyBox}>
             {words.length ? '찾은 디자인이 없습니다.' : '아직 만든 디자인이 없습니다. 위 도구로 시작해 보세요.'}
           </div>
         )}

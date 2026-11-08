@@ -4,6 +4,7 @@ import { sceneTimes } from '../../reels/store'
 import type { ReelScriptBrand } from '../../../shared/reelScript'
 import type { ReelPlayer } from '../../reels/player'
 import type { EffectId, MotionId, ReelProject, ReelScene, SubtitleAnim } from '../../reels/types'
+import { field, label } from '../ui'
 
 const MOTIONS: { id: MotionId; label: string }[] = [
   { id: 'zoomIn', label: '천천히 확대' },
@@ -26,8 +27,6 @@ const EFFECTS: { id: EffectId; label: string }[] = [
   { id: 'cta', label: 'CTA 버튼' },
 ]
 
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500'
-const label = 'mb-1 block text-xs font-semibold text-muted'
 
 type Props = {
   project: ReelProject

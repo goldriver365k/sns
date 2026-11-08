@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import SaveIndicator from '../../components/reels/SaveIndicator'
 import { startAutosave } from '../../reels/persist'
+import { pageTitle } from '../../components/ui'
 
 const TABS = [
   { to: '/reels', label: '자동 릴스', end: true },
@@ -18,7 +19,7 @@ export default function ReelsLayout() {
     <div className="mx-auto max-w-[1400px]">
       <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-forest-900 sm:text-[28px]">AI 자동 릴스</h1>
+          <h1 className={pageTitle}>AI 자동 릴스</h1>
           <p className="mt-1 text-[15px] text-muted">대본과 사진·영상으로 세로형 릴스를 구성하고 모션그래픽을 미리 봅니다.</p>
           <div className="mt-1">
             <SaveIndicator />

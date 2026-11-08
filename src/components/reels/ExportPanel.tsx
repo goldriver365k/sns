@@ -5,6 +5,7 @@ import { pickAudioCodec } from '../../tteolbok/exporter'
 import { canShareImages } from '../../cards/export'
 import type { ReelProject } from '../../reels/types'
 import type { ReelPlayer } from '../../reels/player'
+import { card } from '../ui'
 
 const stamp = () => {
   const d = new Date()
@@ -91,7 +92,7 @@ export default function ExportPanel({ project, player }: { project: ReelProject;
   const mb = result ? (result.blob.size / 1024 / 1024).toFixed(1) : ''
 
   return (
-    <section className="rounded-2xl border border-cream-300 bg-cream-50 p-4">
+    <section className={card}>
       <h2 className="mb-2 text-sm font-bold text-forest-900">MP4 만들기</h2>
       <p className="mb-2 text-[11px] leading-snug text-muted">
         1080×1920 · 30fps · {project.duration}초. 이 컴퓨터에서 직접 만듭니다(서버로 보내지 않음).{' '}

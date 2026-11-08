@@ -1,6 +1,7 @@
 import { REEL_TEXT_FONTS } from '../../reels/render'
 import { newSceneId, updateProject } from '../../reels/store'
 import type { ReelProject, ReelScene, ReelText, ReelTextFont, ReelTextStyle } from '../../reels/types'
+import { field, label, card } from '../ui'
 
 const COLORS = ['#FFFFFF', '#111111', '#FFD43B', '#E8492F', '#1E5B3A', '#2F7DF6']
 const STYLES: { id: ReelTextStyle; label: string }[] = [
@@ -8,8 +9,6 @@ const STYLES: { id: ReelTextStyle; label: string }[] = [
   { id: 'outline', label: '테두리' },
   { id: 'box', label: '배경 상자' },
 ]
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-forest-500'
-const label = 'mb-1 block text-xs text-muted'
 
 type Props = {
   project: ReelProject
@@ -55,7 +54,7 @@ export default function TextPanel({ project, scene, sceneIndex, selected, onSele
   }
 
   return (
-    <section className="rounded-2xl border border-cream-300 bg-cream-50 p-4">
+    <section className={card}>
       <h2 className="mb-1 text-sm font-bold text-forest-900">글자 넣기</h2>
       <p className="mb-2 text-[11px] leading-snug text-muted">자막과 별도로 영상 위에 글자를 더 넣습니다. 미리보기에서 글자를 눌러 끌면 위치가 옮겨집니다.</p>
       <div className="grid grid-cols-2 gap-1.5">

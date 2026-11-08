@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { DEFAULT_AI, listLocalModels, loadAiSettings, saveAiSettings, type AiSettings } from '../../reels/ai'
+import { cardLg as box, field } from '../../components/ui'
 
-const box = 'rounded-2xl border border-cream-300 bg-cream-50 p-5'
-const field = 'w-full rounded-lg border border-cream-300 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500'
 
 /** 릴스 설정: AI 대본 연결 (서버 OpenAI / 로컬 AI) */
 export default function ReelSettings() {

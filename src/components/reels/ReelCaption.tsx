@@ -6,6 +6,7 @@ import { LANGUAGES } from '../../lib/options'
 import { generatePost } from '../../lib/api'
 import { useChannels } from '../../lib/channels'
 import { copyText } from '../../lib/clipboard'
+import { card } from '../ui'
 
 type Captions = Record<string, string>
 
@@ -118,7 +119,7 @@ export default function ReelCaption({ brandName, topic, content, value, onChange
   const missing = (text: string) => !!site && !!text && !text.toLowerCase().includes(`https://${site.toLowerCase()}`)
 
   return (
-    <section className="rounded-2xl border border-cream-300 bg-cream-50 p-4">
+    <section className={card}>
       <h2 className="mb-1 text-sm font-bold text-forest-900">인스타그램 캡션</h2>
       <p className="mb-2 text-[11px] leading-snug text-muted">
         영상과 함께 올릴 캡션입니다. 3줄 이내 + 해시태그{brand ? `(${brand.name} 고정 해시태그 포함)` : ''}
