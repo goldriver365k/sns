@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:office": "tsc -p tools/office-viewer && vite build --config tools/office-viewer/vite.config.ts"
   },
   "dependencies": {
     "@fontsource/black-han-sans": "^5.3.0",

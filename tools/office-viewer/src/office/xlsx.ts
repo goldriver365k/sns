@@ -1,6 +1,6 @@
 // 엑셀(.xlsx) 읽기·간단 수정·저장. 원본 ZIP을 그대로 두고 고친 시트 XML만 바꿔 넣으므로
 // 서식·차트·그림 등 이 화면이 모르는 내용은 그대로 남는다.
-import type JSZip from 'jszip'
+import JSZip from 'jszip'
 import { attr, baseName, child, children, loadZip, mainPart, makeEl, parseXml, readRels, readXml, removePart, writeXml } from './ooxml'
 
 export type XCell = {
@@ -274,7 +274,6 @@ const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'
 const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
 
 export async function newXlsx(): Promise<Workbook> {
-  const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
   zip.file(
     '[Content_Types].xml',

@@ -1,6 +1,6 @@
 // 워드(.docx) 읽기·간단 수정·저장. 원본 ZIP은 그대로 두고 본문(document.xml)과
 // 필요할 때 스타일(styles.xml)만 바꿔 넣으므로 머리글·바닥글·그림 등은 그대로 남는다.
-import type JSZip from 'jszip'
+import JSZip from 'jszip'
 import { attr, baseName, child, children, loadZip, mainPart, makeEl, readRels, readXml, writeXml } from './ooxml'
 
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
@@ -234,7 +234,6 @@ const headingStyle = (id: string, name: string, size: number, outline?: number) 
   `<w:rPr><w:b/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/></w:rPr></w:style>`
 
 export async function newDocx(): Promise<WordDoc> {
-  const { default: JSZip } = await import('jszip')
   const zip = new JSZip()
   zip.file(
     '[Content_Types].xml',

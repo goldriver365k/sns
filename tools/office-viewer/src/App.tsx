@@ -1,35 +1,23 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
-import PageHeader from '../components/PageHeader'
-import SheetView from '../components/office/SheetView'
-import DocView from '../components/office/DocView'
-import { btnGhost, btnPrimary } from '../components/ui'
-import { downloadBlob } from '../cards/export'
-import { baseName, MAX_FILE_BYTES } from '../office/ooxml'
-import * as X from '../office/xlsx'
-import * as D from '../office/docx'
+import SheetView from './components/SheetView'
+import DocView from './components/DocView'
+import { btnGhost, btnPrimary } from './ui'
+import { downloadBlob } from './download'
+import { baseName, MAX_FILE_BYTES } from './office/ooxml'
+import * as X from './office/xlsx'
+import * as D from './office/docx'
 
 type OpenDoc = X.Workbook | D.WordDoc
 
-// 다른 메뉴에 다녀와도 열어 둔 문서가 남도록 화면 밖에 보관한다 (새로 고침하면 사라짐)
-let kept: { doc: OpenDoc; dirty: boolean } | null = null
-
-// 화면 자체가 따로 내려받아지므로 문서 처리 코드도 여기서 함께 불러온다
-const xlsx = async () => X
-const docx = async () => D
-
-/** 엑셀·워드 문서 보기와 간단한 수정 — 파일은 서버로 보내지 않고 이 브라우저에서만 처리한다 */
-export default function OfficeViewer() {
-  const [doc, setDoc] = useState<OpenDoc | null>(kept?.doc ?? null)
-  const [dirty, setDirty] = useState(kept?.dirty ?? false)
+/** 엑셀·워드 문서 보기와 간단한 수정 — 파일은 어디로도 보내지 않고 이 브라우저 안에서만 처리한다 */
+export default function App() {
+  const [doc, setDoc] = useState<OpenDoc | null>(null)
+  const [dirty, setDirty] = useState(false)
   const [, bump] = useReducer((n: number) => n + 1, 0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [drag, setDrag] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    kept = doc ? { doc, dirty } : null
-  }, [doc, dirty])
 
   // 저장하지 않은 수정이 있으면 창을 닫기 전에 묻는다
   useEffect(() => {
@@ -48,7 +36,7 @@ export default function OfficeViewer() {
     setError(null)
     try {
       const opened = await next
-      if (doc?.kind === 'docx') (await docx()).closeDocx(doc)
+      if (doc?.kind === 'docx') D.closeDocx(doc)
       setDoc(opened)
       setDirty(false)
     } catch (e) {
@@ -62,8 +50,8 @@ export default function OfficeViewer() {
     if (!file || !confirmDiscard()) return
     const ext = file.name.split('.').pop()?.toLowerCase()
     if (file.size > MAX_FILE_BYTES) return setError('30MB보다 큰 파일은 열 수 없습니다.')
-    if (ext === 'xlsx' || ext === 'xlsm') return replace(xlsx().then((m) => m.openXlsx(file, file.name)))
-    if (ext === 'docx' || ext === 'docm') return replace(docx().then((m) => m.openDocx(file, file.name)))
+    if (ext === 'xlsx' || ext === 'xlsm') return replace(X.openXlsx(file, file.name))
+    if (ext === 'docx' || ext === 'docm') return replace(D.openDocx(file, file.name))
     if (ext === 'xls' || ext === 'doc') return setError('예전 형식(.xls·.doc)은 열 수 없습니다. 엑셀·워드에서 "다른 이름으로 저장" → .xlsx·.docx로 바꿔 주세요.')
     setError('엑셀(.xlsx) 또는 워드(.docx) 파일만 열 수 있습니다.')
   }
@@ -73,10 +61,10 @@ export default function OfficeViewer() {
     setBusy(true)
     try {
       if (doc.kind === 'xlsx') {
-        const m = await xlsx()
+        const m = X
         downloadBlob(await m.saveXlsx(doc), m.xlsxFileName(doc))
       } else {
-        const m = await docx()
+        const m = D
         downloadBlob(await m.saveDocx(doc), m.docxFileName(doc))
       }
       setDirty(false)
@@ -89,7 +77,7 @@ export default function OfficeViewer() {
 
   async function close() {
     if (!doc || !confirmDiscard()) return
-    if (doc.kind === 'docx') (await docx()).closeDocx(doc)
+    if (doc.kind === 'docx') D.closeDocx(doc)
     setDoc(null)
     setDirty(false)
   }
@@ -119,20 +107,23 @@ export default function OfficeViewer() {
         <button className={btnPrimary} disabled={busy} onClick={() => fileRef.current?.click()}>
           파일 열기
         </button>
-        <button className={btnGhost} disabled={busy} onClick={() => confirmDiscard() && replace(xlsx().then((m) => m.newXlsx()))}>
+        <button className={btnGhost} disabled={busy} onClick={() => confirmDiscard() && replace(X.newXlsx())}>
           새 엑셀
         </button>
-        <button className={btnGhost} disabled={busy} onClick={() => confirmDiscard() && replace(docx().then((m) => m.newDocx()))}>
+        <button className={btnGhost} disabled={busy} onClick={() => confirmDiscard() && replace(D.newDocx())}>
           새 워드
         </button>
       </div>
-      <p className="mt-5 text-sm text-muted">파일은 서버로 보내지 않고 이 브라우저 안에서만 열고 고칩니다.</p>
+      <p className="mt-5 text-sm text-muted">파일은 어디로도 보내지 않고 이 브라우저 안에서만 열고 고칩니다.</p>
     </div>
   )
 
   return (
-    <div>
-      <PageHeader title="엑셀·워드 문서" description="엑셀·워드 파일을 보고 간단히 고친 뒤 다시 저장합니다." />
+    <div className="mx-auto max-w-[1400px] px-4 py-6 sm:px-8 sm:py-10">
+      <header className="mb-8">
+        <h1 className="text-2xl font-bold text-forest-900 sm:text-[28px]">엑셀·워드 문서 도구</h1>
+        <p className="mt-2 text-[15px] text-muted">엑셀·워드 파일을 보고 간단히 고친 뒤 다시 저장합니다. 설치·인터넷 연결 없이 이 파일 하나로 동작합니다.</p>
+      </header>
       <input
         ref={fileRef}
         type="file"
@@ -163,11 +154,11 @@ export default function OfficeViewer() {
               className={btnGhost}
               onClick={async () => {
                 if (doc.kind === 'xlsx') {
-                  const m = await xlsx()
+                  const m = X
                   const sheet = doc.sheets[doc.active] ?? doc.sheets[0]
                   downloadBlob(m.sheetToCsv(sheet), `${baseName(doc.fileName)}-${sheet.name}.csv`)
                 } else {
-                  downloadBlob((await docx()).docxToText(doc), `${baseName(doc.fileName)}.txt`)
+                  downloadBlob(D.docxToText(doc), `${baseName(doc.fileName)}.txt`)
                 }
               }}
             >

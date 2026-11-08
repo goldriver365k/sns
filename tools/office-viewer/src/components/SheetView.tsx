@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { cellRef, colName, setCell, type Merge, type Workbook } from '../../office/xlsx'
+import { cellRef, colName, setCell, type Merge, type Workbook } from '../office/xlsx'
 
 const PAGE_ROWS = 500 // 한 번에 그리는 행 수 (큰 시트도 버벅이지 않게)
 const MAX_COLS = 200

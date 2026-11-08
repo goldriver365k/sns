@@ -16,7 +16,7 @@ import {
   type Level,
   type Para,
   type WordDoc,
-} from '../../office/docx'
+} from '../office/docx'
 
 const LEVEL_CLASS: Record<Para['level'], string> = {
   title: 'text-3xl font-bold text-forest-900 mb-4',
