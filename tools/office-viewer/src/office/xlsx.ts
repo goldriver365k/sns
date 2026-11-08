@@ -543,6 +543,40 @@ export function setCell(wb: Workbook, sheetIndex: number, ref: string, input: st
   return result
 }
 
+/** 셀 서식 번호를 바꾼다 (복사한 칸의 서식을 붙여넣을 때). 0 이면 기본 서식 */
+export function setCellStyle(wb: Workbook, sheetIndex: number, ref: string, style: number) {
+  const sheet = wb.sheets[sheetIndex]
+  if ((sheet.styleOf.get(ref) ?? 0) === style) return
+  const doc = sheet.doc
+  const root = doc.documentElement
+  const ns = root.namespaceURI ?? MAIN
+  let sheetData = child(root, 'sheetData')
+  if (!sheetData) {
+    sheetData = makeEl(doc, ns, 'sheetData', root)
+    root.appendChild(sheetData)
+  }
+  const { r, c } = parseRef(ref)
+  const row = findOrCreate(sheetData, 'row', r, (el) => Number(el.getAttribute('r')), () => {
+    const el = makeEl(doc, ns, 'row', root)
+    el.setAttribute('r', String(r))
+    return el
+  })
+  const cell = findOrCreate(row, 'c', c, (el) => parseRef(el.getAttribute('r') ?? '').c, () => {
+    const el = makeEl(doc, ns, 'c', root)
+    el.setAttribute('r', ref)
+    return el
+  })
+  if (style) {
+    cell.setAttribute('s', String(style))
+    sheet.styleOf.set(ref, style)
+  } else {
+    cell.removeAttribute('s')
+    sheet.styleOf.delete(ref)
+    if (!cell.children.length) cell.remove()
+  }
+  wb.changed.add(sheetIndex)
+}
+
 // ── 열 너비·행 높이 ─────────────────────────────────
 /** 화면 px → 엑셀 열 너비(글자 수 단위) */
 const pxToChars = (px: number) => Math.max(0, Math.round(((px - 5) / 7) * 100) / 100)

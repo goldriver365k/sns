@@ -123,3 +123,39 @@ export function parseTsv(text: string): string[][] {
 export function toTsv(values: string[][]): string {
   return values.map((r) => r.map((v) => (/[\t\n"]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)).join('\t')).join('\r\n')
 }
+
+/**
+ * 수식을 다른 칸에 붙여넣을 때 상대 참조를 옮긴다 (엑셀과 같음).
+ * =A1+B$2 를 한 칸 아래로 → =A2+B$2. $ 가 붙은 쪽은 그대로, 따옴표 안 글자와 함수 이름(LOG10 등)은 건드리지 않는다.
+ */
+export function shiftFormula(input: string, dr: number, dc: number): string {
+  if (!input.startsWith('=') || (dr === 0 && dc === 0)) return input
+  const colNum = (s: string) => s.split('').reduce((n, ch) => n * 26 + ch.charCodeAt(0) - 64, 0)
+  const colStr = (n: number) => {
+    let t = ''
+    while (n > 0) {
+      const m = (n - 1) % 26
+      t = String.fromCharCode(65 + m) + t
+      n = Math.floor((n - 1) / 26)
+    }
+    return t
+  }
+  return input
+    .split(/("(?:[^"]|"")*")/)
+    .map((part, i) => {
+      if (i % 2 === 1) return part // "글자"
+      return part.replace(/(^|[^A-Za-z0-9_.!'])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\dA-Za-z_(])/g, (_m, pre, dCol, col, dRow, row) => {
+        const c = dCol ? colNum(col) : colNum(col) + dc
+        const r = dRow ? Number(row) : Number(row) + dr
+        if (c < 1 || r < 1 || c > 16384) return `${pre}#REF!`
+        return `${pre}${dCol}${colStr(c)}${dRow}${r}`
+      }).replace(/(!)(\$?)([A-Z]{1,3})(\$?)(\d+)(?![\dA-Za-z_(])/g, (_m, bang, dCol, col, dRow, row) => {
+        // 다른 시트 참조 (Sheet1!A1) 도 같은 규칙으로
+        const c = dCol ? colNum(col) : colNum(col) + dc
+        const r = dRow ? Number(row) : Number(row) + dr
+        if (c < 1 || r < 1) return `${bang}#REF!`
+        return `${bang}${dCol}${colStr(c)}${dRow}${r}`
+      })
+    })
+    .join('')
+}

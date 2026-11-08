@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type CSSProperties, type KeyboardEvent, type MouseEvent as ReactMouseEvent, type MutableRefObject } from 'react'
 import { flushSync } from 'react-dom'
-import { cellRef, colName, rangeText, setCell, setColWidths, setPrintArea, setRowHeights, type Range, type Workbook } from '../office/xlsx'
-import { cellCss, colWidth, inRange, mergeLayout, mergeOrigin, normRange, parseTsv, rowHeight, toTsv, usedRange } from './sheetRender'
+import { cellRef, colName, rangeText, setCell, setCellStyle, setColWidths, setPrintArea, setRowHeights, type Range, type Workbook } from '../office/xlsx'
+import { cellCss, colWidth, inRange, mergeLayout, mergeOrigin, normRange, parseTsv, rowHeight, shiftFormula, toTsv, usedRange } from './sheetRender'
 import { SheetPrint, SheetPrintDialog, type SheetPrintJob } from './Print'
 import { ZoomControl, loadZoom, saveZoom } from './Zoom'
 
@@ -12,7 +12,10 @@ const tool = 'rounded-lg px-2.5 py-1 text-sm text-ink hover:bg-cream-200 disable
 
 type Pos = { r: number; c: number }
 type SizeChange = { kind: 'col' | 'row'; n: number; before: number }
-type UndoItem = { sheet: number; edits: { ref: string; before: string }[]; sizes?: SizeChange[] }
+type UndoItem = { sheet: number; edits: { ref: string; before: string; styleBefore?: number }[]; sizes?: SizeChange[] }
+type Edit = { ref: string; value?: string; style?: number }
+/** 복사(잘라내기)한 칸: 값·수식·서식을 복사한 순간 그대로 기억 */
+type Clip = { sheet: number; range: Range; cut: boolean; cells: { input: string; value: string; style: number }[][]; text: string }
 type Resize = { kind: 'col' | 'row'; targets: number[]; start: number; size: number; before: SizeChange[] }
 
 /** 엑셀 시트 보기 + 셀 고치기 + 인쇄 */
@@ -38,6 +41,9 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
   const inputRef = useRef<HTMLInputElement>(null)
   const skipBlur = useRef(false) // Esc로 취소할 때는 저장하지 않는다
   const resizing = useRef<Resize | null>(null)
+  const clip = useRef<Clip | null>(null)
+  const [clipMark, setClipMark] = useState<{ sheet: number; range: Range; cut: boolean } | null>(null)
+  const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [, redraw] = useState(0)
 
   const sel = normRange(anchor, focus)
@@ -70,18 +76,22 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
   // ── 고치기 ──
   /** 여러 칸을 한 번에 고치고 한 번에 되돌릴 수 있게 기록한다 */
   const apply = useCallback(
-    (edits: { ref: string; value: string }[]) => {
+    (edits: Edit[]) => {
       const done: UndoItem['edits'] = []
       let lockedCount = 0
       for (const e of edits) {
         const before = sheet.cells.get(e.ref)
-        if ((before?.input ?? '') === e.value) continue
-        if (before?.locked) {
+        const styleBefore = sheet.styleOf.get(e.ref) ?? 0
+        const valueChange = e.value !== undefined && (before?.input ?? '') !== e.value
+        const styleChange = e.style !== undefined && styleBefore !== e.style
+        if (!valueChange && !styleChange) continue
+        if (valueChange && before?.locked) {
           lockedCount++
           continue
         }
-        setCell(wb, index, e.ref, e.value)
-        done.push({ ref: e.ref, before: before?.input ?? '' })
+        if (styleChange) setCellStyle(wb, index, e.ref, e.style!)
+        if (valueChange) setCell(wb, index, e.ref, e.value!)
+        done.push({ ref: e.ref, before: before?.input ?? '', styleBefore: styleChange ? styleBefore : undefined })
       }
       if (done.length) {
         undo.current.push({ sheet: index, edits: done })
@@ -109,7 +119,10 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
   function undoLast() {
     const item = undo.current.pop()
     if (!item) return
-    for (const e of [...item.edits].reverse()) setCell(wb, item.sheet, e.ref, e.before)
+    for (const e of [...item.edits].reverse()) {
+      if (e.styleBefore !== undefined) setCellStyle(wb, item.sheet, e.ref, e.styleBefore)
+      if ((wb.sheets[item.sheet].cells.get(e.ref)?.input ?? '') !== e.before) setCell(wb, item.sheet, e.ref, e.before)
+    }
     for (const z of item.sizes ?? []) {
       if (z.kind === 'col') setColWidths(wb, item.sheet, [z.n], z.before)
       else setRowHeights(wb, item.sheet, [z.n], z.before)
@@ -250,6 +263,10 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
     } else if (ctrl && e.key === 'Home') {
       e.preventDefault()
       moveTo({ r: 1, c: 1 })
+    } else if (e.key === 'Escape') {
+      // 엑셀처럼 Esc 로 복사 표시(점선)를 없앤다
+      clip.current = null
+      setClipMark(null)
     } else if (e.key === 'Enter' || e.key === 'F2') {
       e.preventDefault()
       inputRef.current?.focus()
@@ -282,27 +299,110 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
     }
   }
 
-  // ── 복사·잘라내기·붙여넣기 (엑셀과 주고받기 가능) ──
+  // ── 잘라내기·복사·붙여넣기 ──
+  // 이 프로그램 안에서는 값·수식·서식을 함께 옮기고(수식의 칸 주소는 옮긴 만큼 바뀜),
+  // 엑셀·메모장 등 다른 프로그램과는 글(탭으로 구분)로 주고받는다.
+  function copySel(cut: boolean): string {
+    const cells: Clip['cells'] = []
+    const values: string[][] = []
+    for (let y = sel.r1; y <= sel.r2; y++) {
+      const row: Clip['cells'][number] = []
+      const vrow: string[] = []
+      for (let x = sel.c1; x <= sel.c2; x++) {
+        const k = cellRef(y, x)
+        const v = sheet.cells.get(k)
+        row.push({ input: v?.input ?? '', value: v?.value ?? '', style: sheet.styleOf.get(k) ?? 0 })
+        vrow.push(v?.value ?? '')
+      }
+      cells.push(row)
+      values.push(vrow)
+    }
+    const text = toTsv(values)
+    clip.current = { sheet: index, range: { ...sel }, cut, cells, text }
+    setClipMark({ sheet: index, range: { ...sel }, cut })
+    setNotice(cut ? '잘라낸 범위를 붙여넣을 곳을 고르고 붙여넣기 하세요 (Esc: 취소).' : null)
+    return text
+  }
+
+  const normText = (t: string) => t.replace(/\r\n?/g, '\n').replace(/\n+$/, '')
+
+  /** 붙여넣기: 우리가 복사한 내용이면 서식·수식까지, 아니면 글만 */
+  function pasteText(text: string | null, valuesOnly = false) {
+    const c = clip.current
+    if (c && (text === null || normText(text) === normText(c.text))) return pasteInternal(c, valuesOnly)
+    if (!text) return
+    const data = parseTsv(text)
+    apply(data.flatMap((row, y) => row.map((v, x) => ({ ref: cellRef(sel.r1 + y, sel.c1 + x), value: v }))))
+    setAnchor({ r: sel.r1, c: sel.c1 })
+    setFocus({ r: sel.r1 + data.length - 1, c: sel.c1 + Math.max(...data.map((r) => r.length)) - 1 })
+  }
+
+  function pasteInternal(c: Clip, valuesOnly: boolean) {
+    const top = { r: sel.r1, c: sel.c1 }
+    const dr = top.r - c.range.r1
+    const dc = top.c - c.range.c1
+    const edits = new Map<string, Edit>()
+    // 잘라내기: 원래 칸을 비운다 (붙여넣을 곳과 겹치는 칸은 아래에서 덮어씀)
+    if (c.cut && c.sheet === index)
+      for (let y = c.range.r1; y <= c.range.r2; y++) for (let x = c.range.c1; x <= c.range.c2; x++) edits.set(cellRef(y, x), { ref: cellRef(y, x), value: '', style: 0 })
+    c.cells.forEach((row, y) =>
+      row.forEach((src, x) => {
+        const ref = cellRef(top.r + y, top.c + x)
+        if (valuesOnly) edits.set(ref, { ref, value: src.value })
+        // 잘라내기는 수식을 그대로 옮기고(엑셀과 같음), 복사는 칸 주소를 옮긴 만큼 바꾼다
+        else edits.set(ref, { ref, value: c.cut ? src.input : shiftFormula(src.input, dr, dc), style: src.style })
+      }),
+    )
+    apply([...edits.values()])
+    // 다른 시트에서 잘라낸 경우 원래 시트의 칸도 비운다
+    if (c.cut && c.sheet !== index) {
+      for (let y = c.range.r1; y <= c.range.r2; y++)
+        for (let x = c.range.c1; x <= c.range.c2; x++) {
+          setCell(wb, c.sheet, cellRef(y, x), '')
+          setCellStyle(wb, c.sheet, cellRef(y, x), 0)
+        }
+      onChange()
+    }
+    setAnchor(top)
+    setFocus({ r: top.r + c.cells.length - 1, c: top.c + c.cells[0].length - 1 })
+    if (c.cut) {
+      clip.current = null
+      setClipMark(null)
+      setNotice(null)
+    }
+  }
+
+  // 키보드(Ctrl+X/C/V): 브라우저의 잘라내기·복사·붙여넣기 이벤트로 처리 → 다른 프로그램과도 주고받기
   function onCopy(e: ClipboardEvent, cut = false) {
     if (e.target !== gridRef.current) return
     e.preventDefault()
-    const values: string[][] = []
-    for (let y = sel.r1; y <= sel.r2; y++) {
-      const row: string[] = []
-      for (let x = sel.c1; x <= sel.c2; x++) row.push(sheet.cells.get(cellRef(y, x))?.value ?? '')
-      values.push(row)
-    }
-    e.clipboardData.setData('text/plain', toTsv(values))
-    if (cut) clearRange()
+    e.clipboardData.setData('text/plain', copySel(cut))
   }
   function onPaste(e: ClipboardEvent) {
     if (e.target !== gridRef.current) return
     e.preventDefault()
-    const data = parseTsv(e.clipboardData.getData('text/plain'))
-    const edits: { ref: string; value: string }[] = []
-    data.forEach((row, y) => row.forEach((v, x) => edits.push({ ref: cellRef(sel.r1 + y, sel.c1 + x), value: v })))
-    apply(edits)
-    setFocus({ r: sel.r1 + data.length - 1, c: sel.c1 + Math.max(...data.map((r) => r.length)) - 1 })
+    pasteText(e.clipboardData.getData('text/plain'))
+  }
+
+  // 버튼·오른쪽 클릭 메뉴
+  function copyButton(cut: boolean) {
+    setMenu(null)
+    const text = copySel(cut)
+    navigator.clipboard?.writeText(text).catch(() => {}) // 다른 프로그램에 붙여넣을 수 있게 (안 되면 이 안에서만)
+    gridRef.current?.focus()
+  }
+  async function pasteButton(valuesOnly = false) {
+    setMenu(null)
+    gridRef.current?.focus()
+    if (valuesOnly && clip.current) return pasteInternal(clip.current, true)
+    try {
+      const text = await navigator.clipboard.readText()
+      pasteText(text, valuesOnly)
+    } catch {
+      // 브라우저가 버튼으로 읽기를 막으면: 이 안에서 복사한 것만 붙여넣고, 아니면 Ctrl+V 안내
+      if (clip.current) pasteInternal(clip.current, valuesOnly)
+      else setNotice('브라우저가 버튼 붙여넣기를 막았습니다. 다른 프로그램에서 복사한 내용은 Ctrl+V 로 붙여넣어 주세요.')
+    }
   }
 
   // ── 찾기 ──
@@ -377,7 +477,25 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
   function overlay(r: number, c: number, span?: { rows: number; cols: number }): CSSProperties {
     const shadows: string[] = []
     const css: CSSProperties = {}
-    if (inRange(sel, r, c) && !(sel.r1 === sel.r2 && sel.c1 === sel.c2)) css.backgroundImage = 'linear-gradient(rgba(46,107,81,.16), rgba(46,107,81,.16))'
+    const layers: { img: string; size: string; pos: string }[] = []
+    if (inRange(sel, r, c) && !(sel.r1 === sel.r2 && sel.c1 === sel.c2)) layers.push({ img: 'linear-gradient(rgba(46,107,81,.16), rgba(46,107,81,.16))', size: '100% 100%', pos: '0 0' })
+    // 복사·잘라낸 범위: 엑셀처럼 점선 테두리
+    const cm = clipMark && clipMark.sheet === index ? clipMark.range : null
+    if (cm && inRange(cm, r, c)) {
+      const color = clipMark!.cut ? '#b45309' : '#1f4d3a'
+      const h = `repeating-linear-gradient(90deg, ${color} 0 5px, transparent 5px 9px)`
+      const v = `repeating-linear-gradient(0deg, ${color} 0 5px, transparent 5px 9px)`
+      if (r === cm.r1) layers.push({ img: h, size: '100% 2px', pos: 'top' })
+      if (r + (span?.rows ?? 1) - 1 >= cm.r2) layers.push({ img: h, size: '100% 2px', pos: 'bottom' })
+      if (c === cm.c1) layers.push({ img: v, size: '2px 100%', pos: 'left' })
+      if (c + (span?.cols ?? 1) - 1 >= cm.c2) layers.push({ img: v, size: '2px 100%', pos: 'right' })
+    }
+    if (layers.length) {
+      css.backgroundImage = layers.map((l) => l.img).join(', ')
+      css.backgroundSize = layers.map((l) => l.size).join(', ')
+      css.backgroundPosition = layers.map((l) => l.pos).join(', ')
+      css.backgroundRepeat = 'no-repeat'
+    }
     if (area && inRange(area, r, c)) {
       const r2 = r + (span?.rows ?? 1) - 1
       const c2 = c + (span?.cols ?? 1) - 1
@@ -397,6 +515,16 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
       <div className="flex flex-wrap items-center gap-1 border-b border-cream-300 bg-cream-50 px-2 py-1.5">
         <button className={tool} disabled={!undo.current.length} onClick={undoLast} title="되돌리기 (Ctrl+Z)">
           ↶ 되돌리기
+        </button>
+        <span className="mx-1 h-5 w-px bg-cream-300" />
+        <button className={tool} onClick={() => copyButton(true)} title="잘라내기 (Ctrl+X) — 붙여넣으면 옮겨짐">
+          ✂ 잘라내기
+        </button>
+        <button className={tool} onClick={() => copyButton(false)} title="복사 (Ctrl+C) — 값·수식·서식">
+          ⧉ 복사
+        </button>
+        <button className={tool} onClick={() => pasteButton()} title="붙여넣기 (Ctrl+V) — 오른쪽 클릭 메뉴에 '값만 붙여넣기'도 있음">
+          📋 붙여넣기
         </button>
         <span className="mx-1 h-5 w-px bg-cream-300" />
         <button className={tool} onClick={() => autoFit('col', Array.from({ length: sel.c2 - sel.c1 + 1 }, (_, i) => sel.c1 + i))} title="고른 열의 너비를 내용에 맞춤 (열 머리글 경계를 두 번 눌러도 됨)">
@@ -568,6 +696,14 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
                           gridRef.current?.focus()
                         }}
                         onMouseEnter={() => dragging.current && setFocus({ r, c })}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          if (!inRange(sel, r, c)) {
+                            setAnchor({ r, c })
+                            setFocus({ r, c })
+                          }
+                          setMenu({ x: e.clientX, y: e.clientY })
+                        }}
                         onDoubleClick={() => inputRef.current?.focus()}
                         title={v && v.input !== v.value ? v.input : undefined}
                         className={`cursor-cell overflow-hidden border-r border-b border-[#e6e6e6] px-1 leading-tight text-ellipsis ${v?.pending ? 'text-forest-500 italic' : ''} ${
@@ -643,6 +779,36 @@ export default function SheetView({ wb, onChange, printRef }: { wb: Workbook; on
         </span>
       </div>
 
+      {menu && (
+        <>
+          <div className="fixed inset-0 z-40" onMouseDown={() => setMenu(null)} onContextMenu={(e) => (e.preventDefault(), setMenu(null))} />
+          <div
+            className="fixed z-50 w-52 rounded-xl border border-cream-300 bg-white py-1 text-sm shadow-lg"
+            style={{ left: Math.min(menu.x, window.innerWidth - 216), top: Math.min(menu.y, window.innerHeight - 300) }}
+          >
+            {[
+              { label: '✂ 잘라내기', key: 'Ctrl+X', run: () => copyButton(true) },
+              { label: '⧉ 복사', key: 'Ctrl+C', run: () => copyButton(false) },
+              { label: '📋 붙여넣기', key: 'Ctrl+V', run: () => pasteButton() },
+              { label: '값만 붙여넣기', run: () => pasteButton(true) },
+              null,
+              { label: '내용 지우기', key: 'Delete', run: () => (setMenu(null), clearRange()) },
+              null,
+              { label: '인쇄 영역으로 지정', run: () => (setMenu(null), setPrintArea(wb, index, { ...sel }), onChange()) },
+              { label: '열 너비를 내용에 맞춤', run: () => (setMenu(null), autoFit('col', Array.from({ length: sel.c2 - sel.c1 + 1 }, (_, i) => sel.c1 + i))) },
+            ].map((m, i) =>
+              m ? (
+                <button key={i} onClick={m.run} className="flex w-full items-center justify-between px-4 py-1.5 text-left hover:bg-cream-100">
+                  {m.label}
+                  {m.key && <span className="text-xs text-muted">{m.key}</span>}
+                </button>
+              ) : (
+                <div key={i} className="my-1 border-t border-cream-200" />
+              ),
+            )}
+          </div>
+        </>
+      )}
       {printOpen && (
         <SheetPrintDialog sheet={sheet} selection={sel} used={used} value={printOpts} onValue={setPrintOpts} onPrint={runPrint} onClose={() => setPrintOpen(false)} />
       )}

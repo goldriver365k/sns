@@ -78,6 +78,54 @@ export default function DocView({ d, onChange, printRef }: { d: WordDoc; onChang
     }
   }, [printRef])
 
+  // 이 안에서 마지막으로 잘라내거나 복사한 글 (브라우저가 버튼 붙여넣기를 막을 때 대신 씀)
+  const lastCopied = useRef('')
+  useEffect(() => {
+    const remember = () => {
+      const el = document.activeElement
+      if (el instanceof HTMLTextAreaElement && el.closest('article')) {
+        const t = el.value.slice(el.selectionStart, el.selectionEnd)
+        if (t) lastCopied.current = t
+      }
+    }
+    document.addEventListener('copy', remember)
+    document.addEventListener('cut', remember)
+    return () => {
+      document.removeEventListener('copy', remember)
+      document.removeEventListener('cut', remember)
+    }
+  }, [])
+
+  /** 고치고 있는 문단의 글 상자에서 잘라내기·복사·붙여넣기 */
+  async function clipAction(kind: 'cut' | 'copy' | 'paste') {
+    const area = document.activeElement
+    if (!(area instanceof HTMLTextAreaElement) || !area.closest('article')) {
+      setMsg('문단을 눌러 고치는 중에 글자를 고른 뒤 사용하세요.')
+      return
+    }
+    setMsg(null)
+    const picked = area.value.slice(area.selectionStart, area.selectionEnd)
+    if (kind !== 'paste') {
+      if (!picked) return setMsg('잘라내거나 복사할 글자를 먼저 고르세요.')
+      lastCopied.current = picked
+      // 브라우저 기본 기능 → 글 상자의 내용 바뀜(onChange)도 그대로 일어난다
+      if (!document.execCommand(kind)) {
+        await navigator.clipboard?.writeText(picked).catch(() => {})
+        if (kind === 'cut') document.execCommand('insertText', false, '')
+      }
+      return
+    }
+    try {
+      const text = await navigator.clipboard.readText()
+      area.focus()
+      document.execCommand('insertText', false, text)
+    } catch {
+      area.focus()
+      if (lastCopied.current) document.execCommand('insertText', false, lastCopied.current)
+      else setMsg('브라우저가 버튼 붙여넣기를 막았습니다. 다른 프로그램에서 복사한 글은 Ctrl+V 로 붙여넣어 주세요.')
+    }
+  }
+
   const props = { d, editing, setEditing, run }
   const matches = countMatches(d, find)
   const pgSz = Array.from(d.doc.getElementsByTagNameNS('*', 'pgSz')).pop()
@@ -87,6 +135,17 @@ export default function DocView({ d, onChange, printRef }: { d: WordDoc; onChang
     <div className="flex h-full min-h-0 flex-col">
       {/* 도구 모음: 찾아 바꾸기 + 배율 */}
       <div className="flex flex-wrap items-center gap-1 border-b border-cream-300 bg-cream-50 px-2 py-1.5 text-sm">
+        {/* 잘라내기·복사·붙여넣기: 고치고 있는 문단에서 고른 글자에 (onMouseDown 으로 글자 선택이 풀리지 않게) */}
+        {[
+          { label: '✂ 잘라내기', title: '잘라내기 (Ctrl+X)', run: () => clipAction('cut') },
+          { label: '⧉ 복사', title: '복사 (Ctrl+C)', run: () => clipAction('copy') },
+          { label: '📋 붙여넣기', title: '붙여넣기 (Ctrl+V)', run: () => clipAction('paste') },
+        ].map((b) => (
+          <button key={b.label} className={tool} title={b.title} onMouseDown={(e) => (e.preventDefault(), b.run())}>
+            {b.label}
+          </button>
+        ))}
+        <span className="mx-1 h-5 w-px bg-cream-300" />
         <input value={find} onChange={(e) => setFind(e.target.value)} placeholder="찾을 글" className="w-32 rounded-lg border border-cream-300 bg-white px-2 py-1 outline-none focus:border-forest-500" />
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="바꿀 글" className="w-32 rounded-lg border border-cream-300 bg-white px-2 py-1 outline-none focus:border-forest-500" />
         <button
