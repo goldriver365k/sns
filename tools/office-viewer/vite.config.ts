@@ -5,7 +5,9 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
-const OUT_NAME = '엑셀워드도구.html'
+// 고칠 때마다 올린다. 화면과 파일 이름에 붙어 예전 파일과 헷갈리지 않게 한다
+const VERSION = '2'
+const OUT_NAME = `엑셀워드도구-v${VERSION}.html`
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** 만들어진 JS·CSS 파일을 HTML 안으로 넣고 따로 된 파일은 지운다 (파일을 더블클릭해서 열 수 있게) */
@@ -37,6 +39,7 @@ export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   base: './',
   plugins: [react(), tailwindcss(), singleFile()],
+  define: { __APP_VERSION__: JSON.stringify(VERSION) },
   build: {
     outDir: 'dist',
     emptyOutDir: true,

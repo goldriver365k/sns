@@ -9,6 +9,7 @@ import * as D from './office/docx'
 
 type OpenDoc = X.Workbook | D.WordDoc
 
+const VERSION = `v${__APP_VERSION__}`
 const bar = 'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm text-ink hover:bg-cream-200 disabled:opacity-40'
 
 /** 엑셀·워드 문서 보기와 간단한 수정 — 파일은 어디로도 보내지 않고 이 브라우저 안에서만 처리한다 */
@@ -33,7 +34,7 @@ export default function App() {
   }, [dirty])
 
   useEffect(() => {
-    document.title = doc ? `${baseName(doc.fileName)} - 엑셀·워드 문서 도구` : '엑셀·워드 문서 도구'
+    document.title = doc ? `${baseName(doc.fileName)} - 엑셀·워드 문서 도구 ${VERSION}` : `엑셀·워드 문서 도구 ${VERSION}`
   }, [doc])
 
   // 단축키: Ctrl+O 열기, Ctrl+S 저장, Ctrl+P 인쇄
@@ -168,7 +169,9 @@ export default function App() {
       <div className="mx-auto max-w-[1000px] px-4 py-8 sm:px-8 sm:py-12">
         {fileInput}
         <header className="mb-8">
-          <h1 className="text-2xl font-bold text-forest-900 sm:text-[28px]">엑셀·워드 문서 도구</h1>
+          <h1 className="text-2xl font-bold text-forest-900 sm:text-[28px]">
+            엑셀·워드 문서 도구 <span className="ml-1 align-middle rounded-lg bg-forest-50 px-2 py-0.5 text-sm font-semibold text-forest-700">{VERSION}</span>
+          </h1>
           <p className="mt-2 text-[15px] text-muted">엑셀·워드 파일을 보고, 간단히 고치고, 인쇄합니다. 설치·인터넷 연결 없이 이 파일 하나로 동작합니다.</p>
         </header>
         {error && <div className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-[15px] text-red-700">{error}</div>}
@@ -251,6 +254,7 @@ export default function App() {
           {dirty && <span className="ml-2 font-normal text-muted">· 수정됨</span>}
           {busy && <span className="ml-2 font-normal text-muted">· 처리 중…</span>}
         </span>
+        <span className="px-1 text-xs text-muted" title="프로그램 버전">{VERSION}</span>
         <button className={`${bar} text-muted`} onClick={close} title="문서 닫기">
           ✕ 닫기
         </button>

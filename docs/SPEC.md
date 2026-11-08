@@ -485,7 +485,7 @@ PC와 모바일 모두 대응한다.
 
 처음에는 사이트 메뉴(`/office`)로 넣었다가, 사용자 요청으로 **사이트에서 빼고 HTML 파일 하나짜리 별도 프로그램**으로 옮겼다.
 
-- 위치: `tools/office-viewer/` (사용법·구조: 그 폴더의 `README.md`). 완성 파일: `tools/office-viewer/release/엑셀워드도구.html`
+- 위치: `tools/office-viewer/` (사용법·구조: 그 폴더의 `README.md`). 완성 파일: `tools/office-viewer/release/엑셀워드도구-v2.html`
 - 사이트 빌드(`npm run build`)에는 들어가지 않는다. 만들기: `npm run build:office` (타입 검사 + 단일 HTML 빌드)
 - 더블클릭으로 열고 설치·로그인·인터넷이 필요 없다. 파일은 브라우저 안에서만 처리하고 Firestore를 쓰지 않는다. 새 의존성 없음(JSZip·React·Tailwind는 사이트와 같은 것).
 - 엑셀·워드 보기와 간단한 수정 기능, 하지 않는 것(수식 계산, 행·열 삭제 등)은 README에 정리했다.

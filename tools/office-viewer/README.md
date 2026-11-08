@@ -3,7 +3,7 @@
 SNS 사이트(AI 콘텐츠 매니저)와 **따로 쓰는** 프로그램입니다. 사이트 메뉴에는 없고, 사이트 빌드에도 들어가지 않습니다.
 
 ## 쓰는 법
-1. `release/엑셀워드도구.html` 파일을 내려받습니다.
+1. `release/엑셀워드도구-v2.html` 파일을 내려받습니다.
 2. 더블클릭하면 크롬·엣지 등 브라우저에서 열립니다. 설치·로그인·인터넷 연결이 필요 없습니다.
 3. 엑셀(.xlsx)·워드(.docx) 파일을 끌어다 놓거나 [파일 열기] → 고친 뒤 [.xlsx 저장]/[.docx 저장] → 다운로드 폴더에 저장됩니다.
 
@@ -31,7 +31,7 @@ SNS 사이트(AI 콘텐츠 매니저)와 **따로 쓰는** 프로그램입니다
 npm run build:office
 ```
 
-결과물 `tools/office-viewer/dist/엑셀워드도구.html`을 `release/`에 복사해 올립니다. 스크립트·스타일은 모두 HTML 안에 들어갑니다(`vite.config.ts`의 `singleFile`).
+결과물 `tools/office-viewer/dist/엑셀워드도구-v(버전).html`을 `release/`에 복사해 올립니다(예전 버전 파일은 지움). 고칠 때마다 `vite.config.ts`의 `VERSION`을 올려 화면·파일 이름의 버전이 바뀌게 합니다. 스크립트·스타일은 모두 HTML 안에 들어갑니다(`vite.config.ts`의 `singleFile`).
 
 - `src/office/` — 파일 읽기·고치기·저장 (xlsx·docx는 ZIP 안 XML. JSZip 사용)
 - `src/office/xlstyle.ts` — 엑셀 셀 서식(글꼴·채우기·테두리·맞춤·테마 색) → CSS
